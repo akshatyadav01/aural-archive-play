@@ -15,10 +15,12 @@ export const Route = createFileRoute("/api/playlists/$id/songs")({
       GET: async ({ params }) => {
         await ensureDb();
         const r = await getPool().query(
-          `SELECT ${SONG_COLS.split(",")
-            .map((c) => `s.${c.trim().replace(/ AS .*/i, "")}${c.includes(" AS ") ? " AS " + c.split(" AS ")[1] : ""}`)
-            .join(",")},
-            ps.position, ps.id AS playlist_song_id
+          `SELECT s.id, s.title, s.artist, s.duration,
+                  s.audio_filename, s.poster_filename,
+                  (s.audio_data IS NOT NULL) AS has_audio,
+                  (s.poster_data IS NOT NULL) AS has_poster,
+                  s.created_at,
+                  ps.position, ps.id AS playlist_song_id
            FROM playlist_songs ps
            JOIN songs s ON s.id = ps.song_id
            WHERE ps.playlist_id = $1
