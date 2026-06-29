@@ -21,8 +21,20 @@ export const Route = createFileRoute("/api/files/$id")({
         if (!row || !row.data) {
           return new Response("Not found", { status: 404, headers: CORS });
         }
-        const buf: Buffer = row.data;
-        const bytes = new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength);
+        let bytes: Uint8Array;
+        const data = row.data;
+        if (data instanceof Uint8Array) {
+          bytes = data;
+        } else if (typeof data === "string") {
+          // neon HTTP may return bytea as "\\xDEADBEEF" hex string
+          const hex = data.startsWith("\\x") ? data.slice(2) : data;
+          bytes = new Uint8Array(hex.length / 2);
+          for (let i = 0; i < bytes.length; i++) {
+            bytes[i] = parseInt(hex.substr(i * 2, 2), 16);
+          }
+        } else {
+          bytes = new Uint8Array(data);
+        }
         return new Response(bytes as unknown as BodyInit, {
           status: 200,
           headers: {
