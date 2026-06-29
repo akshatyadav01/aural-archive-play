@@ -90,9 +90,7 @@ function MusicApp() {
       const list = await api.listSongs(query);
       setSongs(list);
     } catch (err: any) {
-      setError(
-        `Upload failed: ${err.message}. Make sure the backend is running at ${API_URL}.`
-      );
+      setError(`Upload failed: ${err.message}`);
     } finally {
       setUploading(false);
     }
