@@ -10,33 +10,125 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiSongsRouteImport } from './routes/api/songs'
+import { Route as ApiPlaylistsRouteImport } from './routes/api/playlists'
+import { Route as ApiSongsIdRouteImport } from './routes/api/songs.$id'
+import { Route as ApiPlaylistsIdRouteImport } from './routes/api/playlists.$id'
+import { Route as ApiFilesIdRouteImport } from './routes/api/files.$id'
+import { Route as ApiPlaylistsIdSongsRouteImport } from './routes/api/playlists.$id.songs'
+import { Route as ApiPlaylistsIdSongsSongIdRouteImport } from './routes/api/playlists.$id.songs.$songId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiSongsRoute = ApiSongsRouteImport.update({
+  id: '/api/songs',
+  path: '/api/songs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPlaylistsRoute = ApiPlaylistsRouteImport.update({
+  id: '/api/playlists',
+  path: '/api/playlists',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiSongsIdRoute = ApiSongsIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => ApiSongsRoute,
+} as any)
+const ApiPlaylistsIdRoute = ApiPlaylistsIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => ApiPlaylistsRoute,
+} as any)
+const ApiFilesIdRoute = ApiFilesIdRouteImport.update({
+  id: '/api/files/$id',
+  path: '/api/files/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPlaylistsIdSongsRoute = ApiPlaylistsIdSongsRouteImport.update({
+  id: '/songs',
+  path: '/songs',
+  getParentRoute: () => ApiPlaylistsIdRoute,
+} as any)
+const ApiPlaylistsIdSongsSongIdRoute =
+  ApiPlaylistsIdSongsSongIdRouteImport.update({
+    id: '/$songId',
+    path: '/$songId',
+    getParentRoute: () => ApiPlaylistsIdSongsRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/api/playlists': typeof ApiPlaylistsRouteWithChildren
+  '/api/songs': typeof ApiSongsRouteWithChildren
+  '/api/files/$id': typeof ApiFilesIdRoute
+  '/api/playlists/$id': typeof ApiPlaylistsIdRouteWithChildren
+  '/api/songs/$id': typeof ApiSongsIdRoute
+  '/api/playlists/$id/songs': typeof ApiPlaylistsIdSongsRouteWithChildren
+  '/api/playlists/$id/songs/$songId': typeof ApiPlaylistsIdSongsSongIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/api/playlists': typeof ApiPlaylistsRouteWithChildren
+  '/api/songs': typeof ApiSongsRouteWithChildren
+  '/api/files/$id': typeof ApiFilesIdRoute
+  '/api/playlists/$id': typeof ApiPlaylistsIdRouteWithChildren
+  '/api/songs/$id': typeof ApiSongsIdRoute
+  '/api/playlists/$id/songs': typeof ApiPlaylistsIdSongsRouteWithChildren
+  '/api/playlists/$id/songs/$songId': typeof ApiPlaylistsIdSongsSongIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/api/playlists': typeof ApiPlaylistsRouteWithChildren
+  '/api/songs': typeof ApiSongsRouteWithChildren
+  '/api/files/$id': typeof ApiFilesIdRoute
+  '/api/playlists/$id': typeof ApiPlaylistsIdRouteWithChildren
+  '/api/songs/$id': typeof ApiSongsIdRoute
+  '/api/playlists/$id/songs': typeof ApiPlaylistsIdSongsRouteWithChildren
+  '/api/playlists/$id/songs/$songId': typeof ApiPlaylistsIdSongsSongIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/api/playlists'
+    | '/api/songs'
+    | '/api/files/$id'
+    | '/api/playlists/$id'
+    | '/api/songs/$id'
+    | '/api/playlists/$id/songs'
+    | '/api/playlists/$id/songs/$songId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/api/playlists'
+    | '/api/songs'
+    | '/api/files/$id'
+    | '/api/playlists/$id'
+    | '/api/songs/$id'
+    | '/api/playlists/$id/songs'
+    | '/api/playlists/$id/songs/$songId'
+  id:
+    | '__root__'
+    | '/'
+    | '/api/playlists'
+    | '/api/songs'
+    | '/api/files/$id'
+    | '/api/playlists/$id'
+    | '/api/songs/$id'
+    | '/api/playlists/$id/songs'
+    | '/api/playlists/$id/songs/$songId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ApiPlaylistsRoute: typeof ApiPlaylistsRouteWithChildren
+  ApiSongsRoute: typeof ApiSongsRouteWithChildren
+  ApiFilesIdRoute: typeof ApiFilesIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,22 +140,111 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/songs': {
+      id: '/api/songs'
+      path: '/api/songs'
+      fullPath: '/api/songs'
+      preLoaderRoute: typeof ApiSongsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/playlists': {
+      id: '/api/playlists'
+      path: '/api/playlists'
+      fullPath: '/api/playlists'
+      preLoaderRoute: typeof ApiPlaylistsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/songs/$id': {
+      id: '/api/songs/$id'
+      path: '/$id'
+      fullPath: '/api/songs/$id'
+      preLoaderRoute: typeof ApiSongsIdRouteImport
+      parentRoute: typeof ApiSongsRoute
+    }
+    '/api/playlists/$id': {
+      id: '/api/playlists/$id'
+      path: '/$id'
+      fullPath: '/api/playlists/$id'
+      preLoaderRoute: typeof ApiPlaylistsIdRouteImport
+      parentRoute: typeof ApiPlaylistsRoute
+    }
+    '/api/files/$id': {
+      id: '/api/files/$id'
+      path: '/api/files/$id'
+      fullPath: '/api/files/$id'
+      preLoaderRoute: typeof ApiFilesIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/playlists/$id/songs': {
+      id: '/api/playlists/$id/songs'
+      path: '/songs'
+      fullPath: '/api/playlists/$id/songs'
+      preLoaderRoute: typeof ApiPlaylistsIdSongsRouteImport
+      parentRoute: typeof ApiPlaylistsIdRoute
+    }
+    '/api/playlists/$id/songs/$songId': {
+      id: '/api/playlists/$id/songs/$songId'
+      path: '/$songId'
+      fullPath: '/api/playlists/$id/songs/$songId'
+      preLoaderRoute: typeof ApiPlaylistsIdSongsSongIdRouteImport
+      parentRoute: typeof ApiPlaylistsIdSongsRoute
+    }
   }
 }
 
+interface ApiPlaylistsIdSongsRouteChildren {
+  ApiPlaylistsIdSongsSongIdRoute: typeof ApiPlaylistsIdSongsSongIdRoute
+}
+
+const ApiPlaylistsIdSongsRouteChildren: ApiPlaylistsIdSongsRouteChildren = {
+  ApiPlaylistsIdSongsSongIdRoute: ApiPlaylistsIdSongsSongIdRoute,
+}
+
+const ApiPlaylistsIdSongsRouteWithChildren =
+  ApiPlaylistsIdSongsRoute._addFileChildren(ApiPlaylistsIdSongsRouteChildren)
+
+interface ApiPlaylistsIdRouteChildren {
+  ApiPlaylistsIdSongsRoute: typeof ApiPlaylistsIdSongsRouteWithChildren
+}
+
+const ApiPlaylistsIdRouteChildren: ApiPlaylistsIdRouteChildren = {
+  ApiPlaylistsIdSongsRoute: ApiPlaylistsIdSongsRouteWithChildren,
+}
+
+const ApiPlaylistsIdRouteWithChildren = ApiPlaylistsIdRoute._addFileChildren(
+  ApiPlaylistsIdRouteChildren,
+)
+
+interface ApiPlaylistsRouteChildren {
+  ApiPlaylistsIdRoute: typeof ApiPlaylistsIdRouteWithChildren
+}
+
+const ApiPlaylistsRouteChildren: ApiPlaylistsRouteChildren = {
+  ApiPlaylistsIdRoute: ApiPlaylistsIdRouteWithChildren,
+}
+
+const ApiPlaylistsRouteWithChildren = ApiPlaylistsRoute._addFileChildren(
+  ApiPlaylistsRouteChildren,
+)
+
+interface ApiSongsRouteChildren {
+  ApiSongsIdRoute: typeof ApiSongsIdRoute
+}
+
+const ApiSongsRouteChildren: ApiSongsRouteChildren = {
+  ApiSongsIdRoute: ApiSongsIdRoute,
+}
+
+const ApiSongsRouteWithChildren = ApiSongsRoute._addFileChildren(
+  ApiSongsRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ApiPlaylistsRoute: ApiPlaylistsRouteWithChildren,
+  ApiSongsRoute: ApiSongsRouteWithChildren,
+  ApiFilesIdRoute: ApiFilesIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

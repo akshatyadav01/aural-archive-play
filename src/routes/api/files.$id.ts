@@ -22,11 +22,12 @@ export const Route = createFileRoute("/api/files/$id")({
           return new Response("Not found", { status: 404, headers: CORS });
         }
         const buf: Buffer = row.data;
-        return new Response(buf, {
+        const bytes = new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength);
+        return new Response(bytes, {
           status: 200,
           headers: {
             "Content-Type": row.mime || "application/octet-stream",
-            "Content-Length": String(buf.length),
+            "Content-Length": String(bytes.byteLength),
             "Cache-Control": "public, max-age=31536000, immutable",
             "Accept-Ranges": "bytes",
             ...CORS,
