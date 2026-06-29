@@ -1,19 +1,26 @@
-import pg from "pg";
+import { neon, type NeonQueryFunction } from "@neondatabase/serverless";
 
-const { Pool } = pg;
-
-let pool: pg.Pool | null = null;
+let sqlClient: NeonQueryFunction<false, false> | null = null;
 let initPromise: Promise<void> | null = null;
 
-export function getPool() {
-  if (!pool) {
-    pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
-      ssl: { rejectUnauthorized: false },
-      max: 3,
-    });
+export function getSql() {
+  if (!sqlClient) {
+    const url = process.env.DATABASE_URL;
+    if (!url) throw new Error("DATABASE_URL not set");
+    sqlClient = neon(url);
   }
-  return pool;
+  return sqlClient;
+}
+
+// Thin wrapper so existing code can keep using `.query(text, params)`.
+export function getPool() {
+  const sql = getSql();
+  return {
+    query: async (text: string, params: any[] = []) => {
+      const rows = await sql.query(text, params);
+      return { rows: rows as any[] };
+    },
+  };
 }
 
 async function init() {
@@ -33,12 +40,19 @@ async function init() {
       created_at TIMESTAMP NOT NULL DEFAULT now()
     );
   `);
-  // Add columns if upgrading from an older schema
   await p.query(`ALTER TABLE songs ADD COLUMN IF NOT EXISTS audio_data BYTEA;`);
   await p.query(`ALTER TABLE songs ADD COLUMN IF NOT EXISTS audio_mime TEXT;`);
   await p.query(`ALTER TABLE songs ADD COLUMN IF NOT EXISTS poster_data BYTEA;`);
   await p.query(`ALTER TABLE songs ADD COLUMN IF NOT EXISTS poster_mime TEXT;`);
-  await p.query(`ALTER TABLE songs ALTER COLUMN audio_filename DROP NOT NULL;`).catch(() => {});
+  try {
+    await p.query(`ALTER TABLE songs ALTER COLUMN audio_filename DROP NOT NULL;`);
+  } catch {}
+  // Ensure SERIAL sequence is ahead of any existing max(id) — prevents
+  // "duplicate key value violates unique constraint" after manual inserts.
+  await p.query(
+    `SELECT setval(pg_get_serial_sequence('songs','id'),
+       GREATEST(COALESCE((SELECT MAX(id) FROM songs), 0), 1), true);`
+  );
 
   await p.query(`
     CREATE TABLE IF NOT EXISTS playlists (
@@ -55,10 +69,18 @@ async function init() {
       position INTEGER NOT NULL DEFAULT 0
     );
   `);
+  await p.query(
+    `SELECT setval(pg_get_serial_sequence('playlists','id'),
+       GREATEST(COALESCE((SELECT MAX(id) FROM playlists), 0), 1), true);`
+  );
+  await p.query(
+    `SELECT setval(pg_get_serial_sequence('playlist_songs','id'),
+       GREATEST(COALESCE((SELECT MAX(id) FROM playlist_songs), 0), 1), true);`
+  );
 }
 
 export function ensureDb() {
-  if (!initPromise) initPromise = init();
+  if (!initPromise) initPromise = init().catch((e) => { initPromise = null; throw e; });
   return initPromise;
 }
 
