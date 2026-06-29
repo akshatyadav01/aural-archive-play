@@ -1,12 +1,12 @@
-export const API_URL =
-  (import.meta.env.VITE_API_URL as string | undefined) || "http://localhost:4000";
+// Frontend talks to TanStack server routes on the same origin.
+export const API_URL = "";
 
 export type Song = {
   id: number;
   title: string;
   artist: string | null;
   duration: number | null;
-  audio_filename: string;
+  audio_filename: string | null;
   poster_filename: string | null;
   created_at: string;
 };
@@ -17,8 +17,14 @@ export type Playlist = {
   created_at: string;
 };
 
-export const fileUrl = (name: string | null) =>
-  name ? `${API_URL}/uploads/${name}` : "";
+// Builds a URL that streams audio/poster bytes from the DB.
+// `name` is "audio-<id>" or "poster-<id>" as returned by the API.
+export const fileUrl = (name: string | null) => {
+  if (!name) return "";
+  const m = /^(audio|poster)-(\d+)$/.exec(name);
+  if (!m) return "";
+  return `/api/files/${m[2]}?kind=${m[1]}`;
+};
 
 async function j<T>(r: Response): Promise<T> {
   if (!r.ok) throw new Error((await r.text()) || r.statusText);
@@ -27,31 +33,31 @@ async function j<T>(r: Response): Promise<T> {
 
 export const api = {
   listSongs: (q = "") =>
-    fetch(`${API_URL}/api/songs?q=${encodeURIComponent(q)}`).then(j<Song[]>),
+    fetch(`/api/songs?q=${encodeURIComponent(q)}`).then(j<Song[]>),
   uploadSong: (form: FormData) =>
-    fetch(`${API_URL}/api/songs`, { method: "POST", body: form }).then(j<Song>),
+    fetch(`/api/songs`, { method: "POST", body: form }).then(j<Song>),
   deleteSong: (id: number) =>
-    fetch(`${API_URL}/api/songs/${id}`, { method: "DELETE" }).then(j),
+    fetch(`/api/songs/${id}`, { method: "DELETE" }).then(j),
 
-  listPlaylists: () => fetch(`${API_URL}/api/playlists`).then(j<Playlist[]>),
+  listPlaylists: () => fetch(`/api/playlists`).then(j<Playlist[]>),
   createPlaylist: (name: string) =>
-    fetch(`${API_URL}/api/playlists`, {
+    fetch(`/api/playlists`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name }),
     }).then(j<Playlist>),
   deletePlaylist: (id: number) =>
-    fetch(`${API_URL}/api/playlists/${id}`, { method: "DELETE" }).then(j),
+    fetch(`/api/playlists/${id}`, { method: "DELETE" }).then(j),
   playlistSongs: (id: number) =>
-    fetch(`${API_URL}/api/playlists/${id}/songs`).then(j<Song[]>),
+    fetch(`/api/playlists/${id}/songs`).then(j<Song[]>),
   addToPlaylist: (id: number, song_id: number) =>
-    fetch(`${API_URL}/api/playlists/${id}/songs`, {
+    fetch(`/api/playlists/${id}/songs`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ song_id }),
     }).then(j),
   removeFromPlaylist: (id: number, songId: number) =>
-    fetch(`${API_URL}/api/playlists/${id}/songs/${songId}`, {
+    fetch(`/api/playlists/${id}/songs/${songId}`, {
       method: "DELETE",
     }).then(j),
 };
