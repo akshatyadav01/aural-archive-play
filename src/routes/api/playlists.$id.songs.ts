@@ -1,12 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import {
-  CORS,
-  ensureDb,
-  getPool,
-  json,
-  SONG_COLS,
-  songRowToJson,
-} from "@/lib/db.server";
+import { CORS, ensureDb, getPool, json, songRowToJson } from "@/lib/db.server";
 
 export const Route = createFileRoute("/api/playlists/$id/songs")({
   server: {
