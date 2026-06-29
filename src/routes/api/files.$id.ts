@@ -23,7 +23,7 @@ export const Route = createFileRoute("/api/files/$id")({
         }
         const buf: Buffer = row.data;
         const bytes = new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength);
-        return new Response(bytes, {
+        return new Response(bytes as unknown as BodyInit, {
           status: 200,
           headers: {
             "Content-Type": row.mime || "application/octet-stream",
