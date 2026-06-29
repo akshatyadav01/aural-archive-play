@@ -1,12 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import {
-  api,
-  fileUrl,
-  type Playlist,
-  type Song,
-  API_URL,
-} from "@/lib/music-api";
+import { api, fileUrl, type Playlist, type Song } from "@/lib/music-api";
 
 export const Route = createFileRoute("/")({
   head: () => ({
