@@ -1,12 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import {
-  api,
-  fileUrl,
-  type Playlist,
-  type Song,
-  API_URL,
-} from "@/lib/music-api";
+import { api, fileUrl, type Playlist, type Song } from "@/lib/music-api";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -90,9 +84,7 @@ function MusicApp() {
       const list = await api.listSongs(query);
       setSongs(list);
     } catch (err: any) {
-      setError(
-        `Upload failed: ${err.message}. Make sure the backend is running at ${API_URL}.`
-      );
+      setError(`Upload failed: ${err.message}`);
     } finally {
       setUploading(false);
     }
@@ -136,8 +128,8 @@ function MusicApp() {
           <MenuItem icon="📜" label="Queue" badge={queue.length} active={tab === "queue"} onClick={() => setTab("queue")} />
           <MenuItem icon="📂" label="Playlists" active={tab === "playlists"} onClick={() => setTab("playlists")} />
         </div>
-        <div className="hidden md:block p-3 text-[10px] text-muted-foreground border-t border-border break-all">
-          API: {API_URL}
+        <div className="hidden md:block p-3 text-[10px] text-muted-foreground border-t border-border">
+          Backend: built-in
         </div>
       </nav>
 
@@ -211,7 +203,7 @@ function MusicApp() {
                   {uploading ? "Uploading..." : "Upload Song"}
                 </button>
                 <p className="text-xs text-muted-foreground">
-                  Backend must be running at <code>{API_URL}</code>.
+                  Songs are stored in your Neon database.
                 </p>
               </form>
             </section>
