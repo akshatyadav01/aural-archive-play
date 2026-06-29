@@ -136,8 +136,8 @@ function MusicApp() {
           <MenuItem icon="📜" label="Queue" badge={queue.length} active={tab === "queue"} onClick={() => setTab("queue")} />
           <MenuItem icon="📂" label="Playlists" active={tab === "playlists"} onClick={() => setTab("playlists")} />
         </div>
-        <div className="hidden md:block p-3 text-[10px] text-muted-foreground border-t border-border break-all">
-          API: {API_URL}
+        <div className="hidden md:block p-3 text-[10px] text-muted-foreground border-t border-border">
+          Backend: built-in
         </div>
       </nav>
 
