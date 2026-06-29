@@ -209,7 +209,7 @@ function MusicApp() {
                   {uploading ? "Uploading..." : "Upload Song"}
                 </button>
                 <p className="text-xs text-muted-foreground">
-                  Backend must be running at <code>{API_URL}</code>.
+                  Songs are stored in your Neon database.
                 </p>
               </form>
             </section>
