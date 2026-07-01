@@ -376,29 +376,45 @@ function MusicApp({ onLock }: { onLock: () => void }) {
                   {playlists.length === 0 ? (
                     <EmptyState icon={<Library className="w-8 h-8" />} title="No playlists yet" hint="Create one above to start organizing your music." />
                   ) : (
-                    <ul className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
-                      {playlists.map((p, i) => (
-                        <li key={p.id} className="group relative">
-                          <button onClick={() => setActivePlaylist(p)} className="w-full text-left">
-                            <div className="aspect-square rounded-2xl grid place-items-center mb-3 transition-transform group-hover:scale-[1.02]"
-                              style={{
-                                background: i % 2 === 0 ? "var(--gradient-primary)" : "var(--gradient-accent)",
-                                boxShadow: "var(--shadow-card)",
-                              }}>
-                              <Library className="w-10 h-10 text-primary-foreground/90" />
-                            </div>
-                            <div className="font-semibold truncate text-sm sm:text-base">{p.name}</div>
-                            <div className="text-xs text-muted-foreground">Playlist</div>
-                          </button>
-                          <button
-                            onClick={async () => { await api.deletePlaylist(p.id); setPlaylists((ps) => ps.filter((x) => x.id !== p.id)); }}
-                            className="absolute top-2 right-2 p-2 rounded-full bg-background/70 backdrop-blur opacity-100 md:opacity-0 group-hover:opacity-100 hover:bg-destructive hover:text-destructive-foreground transition-all">
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </li>
-                      ))}
+                    <ul className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+                      {playlists.map((p, i) => {
+                        const gradients = [
+                          "linear-gradient(135deg, oklch(0.72 0.21 150), oklch(0.55 0.22 200))",
+                          "linear-gradient(135deg, oklch(0.65 0.22 305), oklch(0.5 0.24 260))",
+                          "linear-gradient(135deg, oklch(0.75 0.2 70), oklch(0.6 0.24 22))",
+                          "linear-gradient(135deg, oklch(0.7 0.2 220), oklch(0.55 0.22 305))",
+                          "linear-gradient(135deg, oklch(0.68 0.22 340), oklch(0.55 0.2 30))",
+                          "linear-gradient(135deg, oklch(0.7 0.18 170), oklch(0.5 0.2 250))",
+                        ];
+                        const bg = gradients[i % gradients.length];
+                        return (
+                          <li key={p.id} className="group relative">
+                            <button onClick={() => setActivePlaylist(p)}
+                              className="w-full text-left rounded-2xl p-3 sm:p-4 bg-card/60 border border-border hover:bg-card transition-all hover:-translate-y-0.5"
+                              style={{ boxShadow: "var(--shadow-card)" }}>
+                              <div className="aspect-square rounded-xl grid place-items-center mb-3 relative overflow-hidden"
+                                style={{ background: bg }}>
+                                <Library className="w-10 h-10 sm:w-12 sm:h-12 text-primary-foreground/90 drop-shadow-lg" />
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
+                                <div className="absolute bottom-1.5 right-1.5 w-8 h-8 rounded-full grid place-items-center bg-primary text-primary-foreground opacity-0 group-hover:opacity-100 transition-opacity translate-y-1 group-hover:translate-y-0"
+                                  style={{ boxShadow: "var(--shadow-glow)" }}>
+                                  <Play className="w-3.5 h-3.5 fill-current ml-0.5" />
+                                </div>
+                              </div>
+                              <div className="font-semibold truncate text-sm sm:text-base">{p.name}</div>
+                              <div className="text-[11px] text-muted-foreground uppercase tracking-wider mt-0.5">Playlist</div>
+                            </button>
+                            <button
+                              onClick={async () => { if (confirm(`Delete playlist "${p.name}"?`)) { await api.deletePlaylist(p.id); setPlaylists((ps) => ps.filter((x) => x.id !== p.id)); } }}
+                              className="absolute top-3 right-3 p-1.5 rounded-full bg-background/80 backdrop-blur text-muted-foreground opacity-100 md:opacity-0 group-hover:opacity-100 hover:bg-destructive hover:text-destructive-foreground transition-all">
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </li>
+                        );
+                      })}
                     </ul>
                   )}
+
                 </>
               ) : (
                 <div>
