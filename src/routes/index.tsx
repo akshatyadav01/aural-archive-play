@@ -259,7 +259,7 @@ function MusicApp({ onLock }: { onLock: () => void }) {
       </nav>
 
       {/* Content */}
-      <main className="flex-1 min-w-0 overflow-y-auto pb-40 md:pb-32">
+      <main className="flex-1 min-w-0 overflow-y-auto pb-56 md:pb-32">
         <header className="hidden md:block sticky top-0 z-10 backdrop-blur-xl bg-background/70 border-b border-border/60 px-6 lg:px-10 py-5">
           <h1 className="text-2xl lg:text-3xl font-bold tracking-tight">{tabMeta[tab].title}</h1>
           <p className="text-sm text-muted-foreground mt-0.5">{tabMeta[tab].subtitle}</p>
