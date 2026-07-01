@@ -216,7 +216,7 @@ function MusicApp({ onLock }: { onLock: () => void }) {
         </button>
       </div>
 
-      {/* Mobile nav drawer */}
+      {/* Mobile nav drawer (from hamburger) */}
       {navOpen && (
         <div className="md:hidden fixed inset-0 z-40 bg-background/80 backdrop-blur-xl" onClick={() => setNavOpen(false)}>
           <div className="p-4 space-y-1" onClick={(e) => e.stopPropagation()}>
@@ -225,9 +225,18 @@ function MusicApp({ onLock }: { onLock: () => void }) {
         </div>
       )}
 
+      {/* Toast */}
+      {toast && (
+        <div className="fixed z-50 left-1/2 -translate-x-1/2 top-16 md:top-6 px-4 py-2.5 rounded-full bg-primary text-primary-foreground text-sm font-medium shadow-lg animate-in fade-in slide-in-from-top-2"
+          style={{ boxShadow: "var(--shadow-glow)" }}>
+          {toast}
+        </div>
+      )}
+
       {/* Sidebar (desktop) */}
       <nav className="hidden md:flex w-20 lg:w-64 shrink-0 border-r border-border bg-sidebar/60 backdrop-blur-xl flex-col sticky top-0 h-screen">
         <div className="p-5 flex items-center gap-3">
+
           <div className="w-10 h-10 rounded-xl grid place-items-center shrink-0"
             style={{ background: "var(--gradient-primary)", boxShadow: "var(--shadow-glow)" }}>
             <Disc3 className="w-5 h-5 text-primary-foreground" />
