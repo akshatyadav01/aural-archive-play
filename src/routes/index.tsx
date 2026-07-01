@@ -88,6 +88,8 @@ function MusicApp({ onLock }: { onLock: () => void }) {
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
   const [navOpen, setNavOpen] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+
 
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [activePlaylist, setActivePlaylist] = useState<Playlist | null>(null);
