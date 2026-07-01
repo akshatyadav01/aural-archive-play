@@ -425,10 +425,35 @@ function MusicApp({ onLock }: { onLock: () => void }) {
         </div>
       </main>
 
+      {/* Mobile bottom tab bar (always visible) */}
+      <nav className="md:hidden fixed left-0 right-0 bottom-0 z-30 bg-sidebar/95 backdrop-blur-xl border-t border-border grid grid-cols-4 h-16">
+        {[
+          { t: "search" as Tab, icon: <Search className="w-5 h-5" />, label: "Search" },
+          { t: "upload" as Tab, icon: <Upload className="w-5 h-5" />, label: "Upload" },
+          { t: "queue" as Tab, icon: <ListMusic className="w-5 h-5" />, label: "Queue", badge: queue.length },
+          { t: "playlists" as Tab, icon: <Library className="w-5 h-5" />, label: "Playlists" },
+        ].map((it) => {
+          const active = tab === it.t;
+          return (
+            <button key={it.t} onClick={() => { selectTab(it.t); if (it.t === "playlists") setActivePlaylist(null); }}
+              className={`relative flex flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors ${
+                active ? "text-primary" : "text-muted-foreground"
+              }`}>
+              {it.icon}
+              <span>{it.label}</span>
+              {it.badge ? (
+                <span className="absolute top-1.5 right-1/2 translate-x-4 text-[9px] font-bold bg-primary text-primary-foreground rounded-full min-w-4 h-4 px-1 grid place-items-center">{it.badge}</span>
+              ) : null}
+            </button>
+          );
+        })}
+      </nav>
+
       {/* Player bar */}
       {current && (
-        <div className="fixed bottom-0 left-0 right-0 z-20 border-t border-border bg-card/90 backdrop-blur-2xl px-3 sm:px-4 py-3"
+        <div className="fixed bottom-16 md:bottom-0 left-0 right-0 z-20 border-t border-border bg-card/90 backdrop-blur-2xl px-3 sm:px-4 py-3"
           style={{ boxShadow: "0 -8px 32px -8px rgba(0,0,0,0.4)" }}>
+
           <div className="flex items-center gap-3 sm:gap-4">
             <div className="flex items-center gap-3 flex-1 sm:flex-initial sm:w-56 lg:w-72 min-w-0">
               <Cover song={current} size={44} />
