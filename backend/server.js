@@ -11,9 +11,10 @@ import { fileURLToPath } from "url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const DATABASE_URL =
-  process.env.DATABASE_URL ||
-  "postgresql://neondb_owner:npg_pDNvqa82OFeu@ep-lucky-dream-at6dop6n-pooler.c-9.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require";
-
+  process.env.DATABASE_URL;
+if (!DATABASE_URL) {
+  throw new Error("DATABASE_URL is not set");
+}
 const PORT = process.env.PORT || 4000;
 
 // --- Database ---
@@ -76,7 +77,12 @@ app.use(express.json());
 app.use("/uploads", express.static(uploadsDir));
 
 // Health
-app.get("/", (req, res) => res.json({ ok: true, name: "music-app-backend" }));
+app.get("/api/health", (req, res) => {
+  res.json({
+    status: "ok",
+    database: "connected"
+  });
+});
 
 // --- Songs ---
 // List with optional search ?q=
