@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   Search, Upload, ListMusic, Library, Music2, Play, Pause,
   Plus, X, SkipForward, Trash2, ChevronLeft, Disc3, FolderPlus,
+  Repeat, Repeat1, Lock, LogOut, Menu,
 } from "lucide-react";
 import { api, fileUrl, type Playlist, type Song } from "@/lib/music-api";
 
@@ -11,20 +12,82 @@ export const Route = createFileRoute("/")({
     meta: [
       { title: "Sonix — Your Music, Reimagined" },
       { name: "description", content: "Upload, search, queue, and play your songs." },
+      { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
     ],
   }),
-  component: MusicApp,
+  component: Gate,
 });
+
+const PASSWORD = "tendercoco";
+const STORAGE_KEY = "sonix-unlocked";
+
+function Gate() {
+  const [unlocked, setUnlocked] = useState(false);
+  const [input, setInput] = useState("");
+  const [err, setErr] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && sessionStorage.getItem(STORAGE_KEY) === "1") {
+      setUnlocked(true);
+    }
+  }, []);
+
+  if (unlocked) return <MusicApp onLock={() => { sessionStorage.removeItem(STORAGE_KEY); setUnlocked(false); }} />;
+
+  function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (input === PASSWORD) {
+      sessionStorage.setItem(STORAGE_KEY, "1");
+      setUnlocked(true);
+    } else {
+      setErr(true);
+    }
+  }
+
+  return (
+    <div className="min-h-screen grid place-items-center p-6">
+      <form onSubmit={submit} className="w-full max-w-sm bg-card/60 backdrop-blur border border-border rounded-2xl p-6 sm:p-8 space-y-5"
+        style={{ boxShadow: "var(--shadow-card)" }}>
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-xl grid place-items-center shrink-0"
+            style={{ background: "var(--gradient-primary)", boxShadow: "var(--shadow-glow)" }}>
+            <Lock className="w-5 h-5 text-primary-foreground" />
+          </div>
+          <div>
+            <div className="text-xl font-bold tracking-tight">Sonix</div>
+            <div className="text-xs text-muted-foreground">Enter password to continue</div>
+          </div>
+        </div>
+        <input
+          type="password" autoFocus value={input}
+          onChange={(e) => { setInput(e.target.value); setErr(false); }}
+          placeholder="Password"
+          className="w-full px-4 py-3 rounded-xl bg-background/60 border border-border focus:outline-none focus:ring-2 focus:ring-primary/60 text-sm"
+        />
+        {err && <div className="text-xs text-destructive">Wrong password. Try again.</div>}
+        <button type="submit"
+          className="w-full px-4 py-3 rounded-xl text-primary-foreground font-semibold transition-transform hover:scale-[1.01] active:scale-[0.99]"
+          style={{ background: "var(--gradient-primary)", boxShadow: "var(--shadow-glow)" }}>
+          Unlock
+        </button>
+      </form>
+    </div>
+  );
+}
 
 type Tab = "search" | "upload" | "queue" | "playlists";
 
-function MusicApp() {
+function MusicApp({ onLock }: { onLock: () => void }) {
   const [tab, setTab] = useState<Tab>("search");
   const [songs, setSongs] = useState<Song[]>([]);
   const [query, setQuery] = useState("");
   const [queue, setQueue] = useState<Song[]>([]);
   const [current, setCurrent] = useState<Song | null>(null);
   const [playing, setPlaying] = useState(false);
+  const [loop, setLoop] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [navOpen, setNavOpen] = useState(false);
 
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [activePlaylist, setActivePlaylist] = useState<Playlist | null>(null);
@@ -61,11 +124,16 @@ function MusicApp() {
     if (a.paused) a.play(); else a.pause();
   }
   function playNext() {
+    if (loop && current) {
+      const a = audioRef.current; if (!a) return;
+      a.currentTime = 0; a.play().catch(() => {}); return;
+    }
     if (queue.length === 0) { setCurrent(null); return; }
     const [next, ...rest] = queue;
     setQueue(rest); playSong(next);
   }
   function addToQueue(s: Song) { setQueue((q) => [...q, s]); }
+  function selectTab(t: Tab) { setTab(t); setNavOpen(false); }
 
   async function handleUpload(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -104,15 +172,57 @@ function MusicApp() {
     playlists: { title: "Playlists", subtitle: "Curated collections, your way" },
   };
 
+  const navItems = (
+    <>
+      <MenuItem icon={<Search className="w-5 h-5" />} label="Search" active={tab === "search"} onClick={() => selectTab("search")} />
+      <MenuItem icon={<Upload className="w-5 h-5" />} label="Upload" active={tab === "upload"} onClick={() => selectTab("upload")} />
+      <MenuItem icon={<ListMusic className="w-5 h-5" />} label="Queue" badge={queue.length} active={tab === "queue"} onClick={() => selectTab("queue")} />
+      <MenuItem icon={<Library className="w-5 h-5" />} label="Playlists" active={tab === "playlists"} onClick={() => { selectTab("playlists"); setActivePlaylist(null); }} />
+    </>
+  );
+
+  const pct = duration > 0 ? (progress / duration) * 100 : 0;
+  function seek(e: React.ChangeEvent<HTMLInputElement>) {
+    const a = audioRef.current; if (!a || !duration) return;
+    a.currentTime = (Number(e.target.value) / 100) * duration;
+  }
+  function fmt(t: number) {
+    if (!isFinite(t)) return "0:00";
+    const m = Math.floor(t / 60); const s = Math.floor(t % 60);
+    return `${m}:${s.toString().padStart(2, "0")}`;
+  }
+
   return (
-    <div className="min-h-screen text-foreground flex">
-      {/* Sidebar */}
-      <nav className="w-20 lg:w-64 shrink-0 border-r border-border bg-sidebar/60 backdrop-blur-xl flex flex-col sticky top-0 h-screen">
+    <div className="min-h-screen text-foreground flex flex-col md:flex-row">
+      {/* Mobile top bar */}
+      <div className="md:hidden sticky top-0 z-30 flex items-center gap-3 px-4 py-3 bg-sidebar/80 backdrop-blur-xl border-b border-border">
+        <button onClick={() => setNavOpen((v) => !v)} className="p-2 -ml-2 rounded-lg hover:bg-card/60">
+          <Menu className="w-5 h-5" />
+        </button>
+        <div className="w-8 h-8 rounded-lg grid place-items-center shrink-0"
+          style={{ background: "var(--gradient-primary)" }}>
+          <Disc3 className="w-4 h-4 text-primary-foreground" />
+        </div>
+        <div className="font-bold tracking-tight">Sonix</div>
+        <button onClick={onLock} className="ml-auto p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-card/60" title="Lock">
+          <LogOut className="w-4 h-4" />
+        </button>
+      </div>
+
+      {/* Mobile nav drawer */}
+      {navOpen && (
+        <div className="md:hidden fixed inset-0 z-40 bg-background/80 backdrop-blur-xl" onClick={() => setNavOpen(false)}>
+          <div className="p-4 space-y-1" onClick={(e) => e.stopPropagation()}>
+            {navItems}
+          </div>
+        </div>
+      )}
+
+      {/* Sidebar (desktop) */}
+      <nav className="hidden md:flex w-20 lg:w-64 shrink-0 border-r border-border bg-sidebar/60 backdrop-blur-xl flex-col sticky top-0 h-screen">
         <div className="p-5 flex items-center gap-3">
-          <div
-            className="w-10 h-10 rounded-xl grid place-items-center shrink-0"
-            style={{ background: "var(--gradient-primary)", boxShadow: "var(--shadow-glow)" }}
-          >
+          <div className="w-10 h-10 rounded-xl grid place-items-center shrink-0"
+            style={{ background: "var(--gradient-primary)", boxShadow: "var(--shadow-glow)" }}>
             <Disc3 className="w-5 h-5 text-primary-foreground" />
           </div>
           <div className="hidden lg:block">
@@ -121,31 +231,34 @@ function MusicApp() {
           </div>
         </div>
 
-        <div className="px-3 mt-2 flex-1 space-y-1">
-          <MenuItem icon={<Search className="w-5 h-5" />} label="Search" active={tab === "search"} onClick={() => setTab("search")} />
-          <MenuItem icon={<Upload className="w-5 h-5" />} label="Upload" active={tab === "upload"} onClick={() => setTab("upload")} />
-          <MenuItem icon={<ListMusic className="w-5 h-5" />} label="Queue" badge={queue.length} active={tab === "queue"} onClick={() => setTab("queue")} />
-          <MenuItem icon={<Library className="w-5 h-5" />} label="Playlists" active={tab === "playlists"} onClick={() => { setTab("playlists"); setActivePlaylist(null); }} />
-        </div>
+        <div className="px-3 mt-2 flex-1 space-y-1">{navItems}</div>
 
         <div className="hidden lg:block p-4 m-3 rounded-xl border border-border bg-card/40">
           <div className="text-xs font-semibold mb-1">Library</div>
-          <div className="text-xs text-muted-foreground">{songs.length} songs · {playlists.length} playlists</div>
+          <div className="text-xs text-muted-foreground mb-3">{songs.length} songs · {playlists.length} playlists</div>
+          <button onClick={onLock} className="w-full text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5">
+            <LogOut className="w-3 h-3" /> Lock app
+          </button>
         </div>
       </nav>
 
       {/* Content */}
-      <main className="flex-1 min-w-0 overflow-y-auto pb-32">
-        <header className="sticky top-0 z-10 backdrop-blur-xl bg-background/70 border-b border-border/60 px-6 lg:px-10 py-5">
+      <main className="flex-1 min-w-0 overflow-y-auto pb-40 md:pb-32">
+        <header className="hidden md:block sticky top-0 z-10 backdrop-blur-xl bg-background/70 border-b border-border/60 px-6 lg:px-10 py-5">
           <h1 className="text-2xl lg:text-3xl font-bold tracking-tight">{tabMeta[tab].title}</h1>
           <p className="text-sm text-muted-foreground mt-0.5">{tabMeta[tab].subtitle}</p>
         </header>
 
-        <div className="px-6 lg:px-10 py-6 max-w-5xl">
+        <div className="px-4 sm:px-6 lg:px-10 py-5 md:py-6 max-w-5xl">
+          <div className="md:hidden mb-4">
+            <h1 className="text-2xl font-bold tracking-tight">{tabMeta[tab].title}</h1>
+            <p className="text-xs text-muted-foreground mt-0.5">{tabMeta[tab].subtitle}</p>
+          </div>
+
           {error && (
             <div className="rounded-xl bg-destructive/10 border border-destructive/30 text-destructive p-3 text-sm mb-4 flex items-start gap-2">
-              <X className="w-4 h-4 mt-0.5 shrink-0" /> <span>{error}</span>
-              <button onClick={() => setError(null)} className="ml-auto text-xs opacity-70 hover:opacity-100">dismiss</button>
+              <X className="w-4 h-4 mt-0.5 shrink-0" /> <span className="min-w-0 break-words">{error}</span>
+              <button onClick={() => setError(null)} className="ml-auto text-xs opacity-70 hover:opacity-100 shrink-0">dismiss</button>
             </div>
           )}
 
@@ -161,9 +274,7 @@ function MusicApp() {
                 />
               </div>
               <SongList songs={songs} current={current} onPlay={playSong} onQueue={addToQueue}
-                playlists={playlists} onAddToPlaylist={addToPlaylist}
-                onDelete={async (s) => { await api.deleteSong(s.id); setSongs((ss) => ss.filter((x) => x.id !== s.id)); }}
-              />
+                playlists={playlists} onAddToPlaylist={addToPlaylist} />
             </section>
           )}
 
@@ -174,12 +285,12 @@ function MusicApp() {
                   <Music2 className="w-4 h-4" /> {uploadMsg}
                 </div>
               )}
-              <form onSubmit={handleUpload} className="space-y-5 bg-card/60 backdrop-blur border border-border rounded-2xl p-6 lg:p-8" style={{ boxShadow: "var(--shadow-card)" }}>
+              <form onSubmit={handleUpload} className="space-y-5 bg-card/60 backdrop-blur border border-border rounded-2xl p-5 sm:p-6 lg:p-8" style={{ boxShadow: "var(--shadow-card)" }}>
                 <div className="flex items-center gap-4 pb-4 border-b border-border">
-                  <div className="w-12 h-12 rounded-xl grid place-items-center" style={{ background: "var(--gradient-accent)" }}>
+                  <div className="w-12 h-12 rounded-xl grid place-items-center shrink-0" style={{ background: "var(--gradient-accent)" }}>
                     <Upload className="w-5 h-5 text-accent-foreground" />
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <div className="font-semibold">New track</div>
                     <div className="text-xs text-muted-foreground">Audio is stored securely in your library</div>
                   </div>
@@ -188,17 +299,11 @@ function MusicApp() {
                   <Field label="Title"><TextInput name="title" required placeholder="Midnight Drive" /></Field>
                   <Field label="Artist"><TextInput name="artist" placeholder="Unknown" /></Field>
                 </div>
-                <Field label="Audio file">
-                  <FileInput name="audio" accept="audio/*" required />
-                </Field>
-                <Field label="Cover image (optional)">
-                  <FileInput name="poster" accept="image/*" />
-                </Field>
-                <button
-                  type="submit" disabled={uploading}
+                <Field label="Audio file"><FileInput name="audio" accept="audio/*" required /></Field>
+                <Field label="Cover image (optional)"><FileInput name="poster" accept="image/*" /></Field>
+                <button type="submit" disabled={uploading}
                   className="w-full px-4 py-3 rounded-xl text-primary-foreground font-semibold disabled:opacity-60 transition-transform hover:scale-[1.01] active:scale-[0.99]"
-                  style={{ background: "var(--gradient-primary)", boxShadow: "var(--shadow-glow)" }}
-                >
+                  style={{ background: "var(--gradient-primary)", boxShadow: "var(--shadow-glow)" }}>
                   {uploading ? "Uploading…" : "Add to library"}
                 </button>
               </form>
@@ -216,15 +321,15 @@ function MusicApp() {
                   </button>
                   <ul className="space-y-1">
                     {queue.map((s, i) => (
-                      <li key={`${s.id}-${i}`} className="group flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-card/60 transition-colors">
-                        <span className="text-xs text-muted-foreground w-6 text-center font-mono">{i + 1}</span>
+                      <li key={`${s.id}-${i}`} className="flex items-center gap-3 px-2 sm:px-3 py-2.5 rounded-xl hover:bg-card/60 transition-colors">
+                        <span className="text-xs text-muted-foreground w-5 sm:w-6 text-center font-mono shrink-0">{i + 1}</span>
                         <Cover song={s} size={40} />
                         <div className="flex-1 min-w-0">
                           <div className="font-medium truncate text-sm">{s.title}</div>
                           <div className="text-xs text-muted-foreground truncate">{s.artist || "Unknown artist"}</div>
                         </div>
-                        <button onClick={() => playSong(s)} className="opacity-0 group-hover:opacity-100 px-3 py-1.5 rounded-full bg-primary text-primary-foreground text-xs font-medium transition-opacity">Play</button>
-                        <button onClick={() => setQueue((q) => q.filter((_, idx) => idx !== i))} className="text-muted-foreground hover:text-destructive p-1.5">
+                        <button onClick={() => playSong(s)} className="px-3 py-1.5 rounded-full bg-primary text-primary-foreground text-xs font-medium shrink-0">Play</button>
+                        <button onClick={() => setQueue((q) => q.filter((_, idx) => idx !== i))} className="text-muted-foreground hover:text-destructive p-1.5 shrink-0">
                           <X className="w-4 h-4" />
                         </button>
                       </li>
@@ -239,14 +344,14 @@ function MusicApp() {
             <section>
               {!activePlaylist ? (
                 <>
-                  <div className="flex gap-2 mb-6">
+                  <div className="flex flex-col sm:flex-row gap-2 mb-6">
                     <input
                       value={newPlaylist} onChange={(e) => setNewPlaylist(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && createPlaylist()}
                       placeholder="Name your next playlist…"
-                      className="flex-1 px-4 py-3 rounded-xl bg-card/60 border border-border focus:outline-none focus:ring-2 focus:ring-primary/60 focus:border-transparent text-sm"
+                      className="flex-1 min-w-0 px-4 py-3 rounded-xl bg-card/60 border border-border focus:outline-none focus:ring-2 focus:ring-primary/60 text-sm"
                     />
-                    <button onClick={createPlaylist} className="px-5 rounded-xl text-primary-foreground font-semibold inline-flex items-center gap-2"
+                    <button onClick={createPlaylist} className="px-5 py-3 rounded-xl text-primary-foreground font-semibold inline-flex items-center justify-center gap-2"
                       style={{ background: "var(--gradient-primary)" }}>
                       <FolderPlus className="w-4 h-4" /> Create
                     </button>
@@ -255,26 +360,23 @@ function MusicApp() {
                   {playlists.length === 0 ? (
                     <EmptyState icon={<Library className="w-8 h-8" />} title="No playlists yet" hint="Create one above to start organizing your music." />
                   ) : (
-                    <ul className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    <ul className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
                       {playlists.map((p, i) => (
                         <li key={p.id} className="group relative">
                           <button onClick={() => setActivePlaylist(p)} className="w-full text-left">
-                            <div
-                              className="aspect-square rounded-2xl grid place-items-center mb-3 transition-transform group-hover:scale-[1.02]"
+                            <div className="aspect-square rounded-2xl grid place-items-center mb-3 transition-transform group-hover:scale-[1.02]"
                               style={{
                                 background: i % 2 === 0 ? "var(--gradient-primary)" : "var(--gradient-accent)",
                                 boxShadow: "var(--shadow-card)",
-                              }}
-                            >
+                              }}>
                               <Library className="w-10 h-10 text-primary-foreground/90" />
                             </div>
-                            <div className="font-semibold truncate">{p.name}</div>
+                            <div className="font-semibold truncate text-sm sm:text-base">{p.name}</div>
                             <div className="text-xs text-muted-foreground">Playlist</div>
                           </button>
                           <button
                             onClick={async () => { await api.deletePlaylist(p.id); setPlaylists((ps) => ps.filter((x) => x.id !== p.id)); }}
-                            className="absolute top-2 right-2 p-2 rounded-full bg-background/70 backdrop-blur opacity-0 group-hover:opacity-100 hover:bg-destructive hover:text-destructive-foreground transition-all"
-                          >
+                            className="absolute top-2 right-2 p-2 rounded-full bg-background/70 backdrop-blur opacity-100 md:opacity-0 group-hover:opacity-100 hover:bg-destructive hover:text-destructive-foreground transition-all">
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </li>
@@ -287,14 +389,14 @@ function MusicApp() {
                   <button onClick={() => setActivePlaylist(null)} className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1 mb-5">
                     <ChevronLeft className="w-4 h-4" /> All playlists
                   </button>
-                  <div className="flex items-end gap-5 mb-6">
-                    <div className="w-32 h-32 lg:w-40 lg:h-40 rounded-2xl grid place-items-center shrink-0"
+                  <div className="flex flex-col sm:flex-row sm:items-end gap-4 sm:gap-5 mb-6">
+                    <div className="w-28 h-28 sm:w-32 sm:h-32 lg:w-40 lg:h-40 rounded-2xl grid place-items-center shrink-0"
                       style={{ background: "var(--gradient-accent)", boxShadow: "var(--shadow-card)" }}>
-                      <Library className="w-14 h-14 text-accent-foreground/90" />
+                      <Library className="w-12 h-12 sm:w-14 sm:h-14 text-accent-foreground/90" />
                     </div>
                     <div className="min-w-0">
                       <div className="text-xs uppercase tracking-widest text-muted-foreground">Playlist</div>
-                      <h2 className="text-3xl lg:text-5xl font-bold tracking-tight truncate">{activePlaylist.name}</h2>
+                      <h2 className="text-2xl sm:text-3xl lg:text-5xl font-bold tracking-tight truncate">{activePlaylist.name}</h2>
                       <div className="text-sm text-muted-foreground mt-2">{playlistSongs.length} songs</div>
                     </div>
                   </div>
@@ -309,35 +411,64 @@ function MusicApp() {
 
       {/* Player bar */}
       {current && (
-        <div className="fixed bottom-0 left-0 right-0 z-20 border-t border-border bg-card/80 backdrop-blur-2xl px-4 py-3 flex items-center gap-4"
+        <div className="fixed bottom-0 left-0 right-0 z-20 border-t border-border bg-card/90 backdrop-blur-2xl px-3 sm:px-4 py-3"
           style={{ boxShadow: "0 -8px 32px -8px rgba(0,0,0,0.4)" }}>
-          <div className="flex items-center gap-3 w-56 lg:w-72 min-w-0">
-            <Cover song={current} size={52} />
-            <div className="min-w-0">
-              <div className="font-semibold text-sm truncate">{current.title}</div>
-              <div className="text-xs text-muted-foreground truncate">{current.artist || "Unknown artist"}</div>
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className="flex items-center gap-3 flex-1 sm:flex-initial sm:w-56 lg:w-72 min-w-0">
+              <Cover song={current} size={44} />
+              <div className="min-w-0">
+                <div className="font-semibold text-sm truncate">{current.title}</div>
+                <div className="text-xs text-muted-foreground truncate">{current.artist || "Unknown artist"}</div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+              <button onClick={() => setLoop((v) => !v)} title={loop ? "Loop on" : "Loop off"}
+                className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full grid place-items-center transition-colors ${
+                  loop ? "bg-primary/20 text-primary" : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                }`}>
+                {loop ? <Repeat1 className="w-4 h-4" /> : <Repeat className="w-4 h-4" />}
+              </button>
+              <button onClick={togglePlay}
+                className="w-11 h-11 sm:w-12 sm:h-12 rounded-full grid place-items-center text-primary-foreground transition-transform hover:scale-105"
+                style={{ background: "var(--gradient-primary)", boxShadow: "var(--shadow-glow)" }}>
+                {playing ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 ml-0.5" />}
+              </button>
+              <button onClick={playNext} className="w-9 h-9 sm:w-10 sm:h-10 rounded-full grid place-items-center bg-secondary text-secondary-foreground hover:bg-secondary/80">
+                <SkipForward className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="hidden sm:flex items-center gap-2 flex-1 min-w-0">
+              <span className="text-[10px] text-muted-foreground font-mono w-9 text-right">{fmt(progress)}</span>
+              <input
+                type="range" min={0} max={100} step={0.1} value={pct} onChange={seek}
+                className="flex-1 accent-primary h-1"
+              />
+              <span className="text-[10px] text-muted-foreground font-mono w-9">{fmt(duration)}</span>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <button onClick={togglePlay} className="w-11 h-11 rounded-full grid place-items-center text-primary-foreground transition-transform hover:scale-105"
-              style={{ background: "var(--gradient-primary)", boxShadow: "var(--shadow-glow)" }}>
-              {playing ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 ml-0.5" />}
-            </button>
-            <button onClick={playNext} className="w-10 h-10 rounded-full grid place-items-center bg-secondary text-secondary-foreground hover:bg-secondary/80">
-              <SkipForward className="w-4 h-4" />
-            </button>
+          {/* Mobile scrubber below */}
+          <div className="flex sm:hidden items-center gap-2 mt-2">
+            <span className="text-[10px] text-muted-foreground font-mono w-9 text-right">{fmt(progress)}</span>
+            <input
+              type="range" min={0} max={100} step={0.1} value={pct} onChange={seek}
+              className="flex-1 accent-primary h-1"
+            />
+            <span className="text-[10px] text-muted-foreground font-mono w-9">{fmt(duration)}</span>
           </div>
 
           <audio
             ref={audioRef}
             src={fileUrl(current.audio_filename)}
             autoPlay
-            controls
             onPlay={() => setPlaying(true)}
             onPause={() => setPlaying(false)}
             onEnded={playNext}
-            className="flex-1 min-w-0 h-10"
+            onTimeUpdate={(e) => setProgress((e.target as HTMLAudioElement).currentTime)}
+            onLoadedMetadata={(e) => setDuration((e.target as HTMLAudioElement).duration)}
+            className="hidden"
           />
         </div>
       )}
@@ -354,9 +485,9 @@ function MenuItem({ icon, label, active, badge, onClick }: {
         active ? "bg-primary/15 text-primary font-semibold" : "text-muted-foreground hover:text-foreground hover:bg-card/60"
       }`}>
       <span className="shrink-0">{icon}</span>
-      <span className="hidden lg:inline flex-1 text-left">{label}</span>
+      <span className="md:hidden lg:inline flex-1 text-left">{label}</span>
       {badge ? (
-        <span className="hidden lg:inline text-[10px] font-bold bg-primary text-primary-foreground rounded-full px-2 py-0.5">{badge}</span>
+        <span className="md:hidden lg:inline text-[10px] font-bold bg-primary text-primary-foreground rounded-full px-2 py-0.5">{badge}</span>
       ) : null}
     </button>
   );
@@ -374,7 +505,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 function TextInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input {...props}
-      className="w-full px-3.5 py-2.5 rounded-lg bg-background/60 border border-border focus:outline-none focus:ring-2 focus:ring-primary/60 focus:border-transparent text-sm transition-all" />
+      className="w-full px-3.5 py-2.5 rounded-lg bg-background/60 border border-border focus:outline-none focus:ring-2 focus:ring-primary/60 text-sm transition-all" />
   );
 }
 
@@ -399,7 +530,7 @@ function Cover({ song, size = 48 }: { song: Song; size?: number }) {
 
 function EmptyState({ icon, title, hint }: { icon: React.ReactNode; title: string; hint: string }) {
   return (
-    <div className="text-center py-16 px-6 rounded-2xl border border-dashed border-border bg-card/30">
+    <div className="text-center py-12 sm:py-16 px-6 rounded-2xl border border-dashed border-border bg-card/30">
       <div className="w-16 h-16 mx-auto rounded-2xl grid place-items-center mb-4 text-muted-foreground bg-card/60">{icon}</div>
       <div className="font-semibold">{title}</div>
       <div className="text-sm text-muted-foreground mt-1">{hint}</div>
@@ -408,12 +539,12 @@ function EmptyState({ icon, title, hint }: { icon: React.ReactNode; title: strin
 }
 
 function SongList({
-  songs, current, onPlay, onQueue, playlists, onAddToPlaylist, onDelete, onRemove,
+  songs, current, onPlay, onQueue, playlists, onAddToPlaylist, onRemove,
 }: {
   songs: Song[]; current: Song | null;
   onPlay: (s: Song) => void; onQueue: (s: Song) => void;
   playlists: Playlist[]; onAddToPlaylist: (playlistId: number, s: Song) => void;
-  onDelete?: (s: Song) => void; onRemove?: (s: Song) => void;
+  onRemove?: (s: Song) => void;
 }) {
   if (songs.length === 0) {
     return <EmptyState icon={<Music2 className="w-8 h-8" />} title="No songs yet" hint="Upload your first track to get started." />;
@@ -424,39 +555,33 @@ function SongList({
         const isCurrent = current?.id === s.id;
         return (
           <li key={s.id}
-            className={`group flex items-center gap-4 px-3 py-2.5 rounded-xl transition-colors ${
+            className={`group flex items-center gap-2 sm:gap-4 px-2 sm:px-3 py-2.5 rounded-xl transition-colors ${
               isCurrent ? "bg-primary/10" : "hover:bg-card/60"
             }`}>
-            <div className="w-6 text-center text-xs text-muted-foreground font-mono group-hover:hidden">{i + 1}</div>
-            <button onClick={() => onPlay(s)} className="w-6 hidden group-hover:grid place-items-center text-foreground">
-              <Play className="w-3.5 h-3.5 fill-current" />
+            <button onClick={() => onPlay(s)} className="w-6 grid place-items-center text-foreground shrink-0" title="Play">
+              <span className="text-xs text-muted-foreground font-mono group-hover:hidden">{i + 1}</span>
+              <Play className="w-3.5 h-3.5 fill-current hidden group-hover:block" />
             </button>
             <Cover song={s} size={44} />
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0" onClick={() => onPlay(s)}>
               <div className={`font-medium truncate text-sm ${isCurrent ? "text-primary" : ""}`}>{s.title}</div>
               <div className="text-xs text-muted-foreground truncate">{s.artist || "Unknown artist"}</div>
             </div>
             <button onClick={() => onQueue(s)} title="Add to queue"
-              className="opacity-0 group-hover:opacity-100 p-2 rounded-full hover:bg-secondary text-muted-foreground hover:text-foreground transition-all">
+              className="p-2 rounded-full hover:bg-secondary text-muted-foreground hover:text-foreground transition-all shrink-0">
               <Plus className="w-4 h-4" />
             </button>
             {onAddToPlaylist && playlists.length > 0 && !onRemove && (
               <select defaultValue=""
                 onChange={(e) => { const id = Number(e.target.value); if (id) onAddToPlaylist(id, s); e.target.value = ""; }}
-                className="opacity-0 group-hover:opacity-100 text-xs bg-secondary text-secondary-foreground rounded-md px-2 py-1.5 border-0 transition-all cursor-pointer">
+                className="hidden sm:block text-xs bg-secondary text-secondary-foreground rounded-md px-2 py-1.5 border-0 cursor-pointer shrink-0">
                 <option value="">＋ Playlist</option>
                 {playlists.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
             )}
             {onRemove && (
-              <button onClick={() => onRemove(s)} className="text-xs text-muted-foreground hover:text-destructive p-1.5 opacity-0 group-hover:opacity-100">
+              <button onClick={() => onRemove(s)} className="text-xs text-muted-foreground hover:text-destructive p-1.5 shrink-0">
                 <X className="w-4 h-4" />
-              </button>
-            )}
-            {onDelete && (
-              <button onClick={() => onDelete(s)} title="Delete song"
-                className="opacity-0 group-hover:opacity-100 p-2 rounded-full hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-all">
-                <Trash2 className="w-4 h-4" />
               </button>
             )}
           </li>
