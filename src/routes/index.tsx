@@ -134,8 +134,13 @@ function MusicApp({ onLock }: { onLock: () => void }) {
     const [next, ...rest] = queue;
     setQueue(rest); playSong(next);
   }
-  function addToQueue(s: Song) { setQueue((q) => [...q, s]); }
+  function addToQueue(s: Song) {
+    setQueue((q) => [...q, s]);
+    setToast(`Added "${s.title}" to queue`);
+    window.setTimeout(() => setToast(null), 2200);
+  }
   function selectTab(t: Tab) { setTab(t); setNavOpen(false); }
+
 
   async function handleUpload(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
