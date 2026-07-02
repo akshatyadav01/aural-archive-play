@@ -6,6 +6,13 @@ import {
   Repeat, Repeat1, Lock, LogOut, Menu,
 } from "lucide-react";
 import { api, fileUrl, type Playlist, type Song } from "@/lib/music-api";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -612,7 +619,7 @@ function SongList({
         const isCurrent = current?.id === s.id;
         return (
           <li key={s.id}
-            className={`group flex items-center gap-2 sm:gap-4 px-2 sm:px-3 py-2.5 rounded-xl transition-colors ${
+            className={`group flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-2 sm:py-2.5 rounded-xl transition-colors ${
               isCurrent ? "bg-primary/10" : "hover:bg-card/60"
             }`}>
             <button onClick={() => onPlay(s)} className="w-6 grid place-items-center text-foreground shrink-0" title="Play">
@@ -624,26 +631,43 @@ function SongList({
               <div className={`font-medium truncate text-sm ${isCurrent ? "text-primary" : ""}`}>{s.title}</div>
               <div className="text-xs text-muted-foreground truncate">{s.artist || "Unknown artist"}</div>
             </div>
-            <button onClick={() => onQueue(s)} title="Add to queue"
-              className="p-2 rounded-full hover:bg-secondary text-muted-foreground hover:text-foreground transition-all shrink-0">
-              <Plus className="w-4 h-4" />
-            </button>
-            {onAddToPlaylist && playlists.length > 0 && !onRemove && (
-              <select defaultValue=""
-                onChange={(e) => { const id = Number(e.target.value); if (id) onAddToPlaylist(id, s); e.target.value = ""; }}
-                className="hidden sm:block text-xs bg-secondary text-secondary-foreground rounded-md px-2 py-1.5 border-0 cursor-pointer shrink-0">
-                <option value="">＋ Playlist</option>
-                {playlists.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
-            )}
-            {onRemove && (
-              <button onClick={() => onRemove(s)} className="text-xs text-muted-foreground hover:text-destructive p-1.5 shrink-0">
-                <X className="w-4 h-4" />
+
+            <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+              <button onClick={() => onQueue(s)} title="Add to queue"
+                className="w-8 h-8 sm:w-9 sm:h-9 rounded-full grid place-items-center bg-secondary/60 hover:bg-secondary text-muted-foreground hover:text-foreground transition-all shrink-0">
+                <Plus className="w-4 h-4" />
               </button>
-            )}
+
+              {onAddToPlaylist && playlists.length > 0 && !onRemove && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button title="Add to playlist"
+                      className="w-8 h-8 sm:w-9 sm:h-9 rounded-full grid place-items-center bg-secondary/60 hover:bg-secondary text-muted-foreground hover:text-foreground transition-all shrink-0">
+                      <FolderPlus className="w-4 h-4" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-52">
+                    <div className="px-2 py-1 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Add to playlist</div>
+                    {playlists.map((p) => (
+                      <DropdownMenuItem key={p.id} onClick={() => onAddToPlaylist(p.id, s)} className="cursor-pointer">
+                        <ListMusic className="w-4 h-4 text-muted-foreground" />
+                        <span className="truncate">{p.name}</span>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+
+              {onRemove && (
+                <button onClick={() => onRemove(s)} className="w-8 h-8 sm:w-9 sm:h-9 rounded-full grid place-items-center bg-secondary/60 hover:bg-destructive text-muted-foreground hover:text-destructive-foreground transition-all shrink-0">
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
           </li>
         );
       })}
     </ul>
   );
 }
+
