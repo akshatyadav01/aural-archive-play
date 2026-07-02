@@ -508,6 +508,10 @@ function MusicApp({ onLock }: { onLock: () => void }) {
                 }`}>
                 {loop ? <Repeat1 className="w-4 h-4" /> : <Repeat className="w-4 h-4" />}
               </button>
+              <button onClick={playPrevious} title="Previous" disabled={history.length === 0 && progress <= 3}
+                className="w-9 h-9 sm:w-10 sm:h-10 rounded-full grid place-items-center bg-secondary text-secondary-foreground hover:bg-secondary/80 disabled:opacity-40 disabled:hover:bg-secondary">
+                <SkipBack className="w-4 h-4" />
+              </button>
               <button onClick={togglePlay}
                 className="w-11 h-11 sm:w-12 sm:h-12 rounded-full grid place-items-center text-primary-foreground transition-transform hover:scale-105"
                 style={{ background: "var(--gradient-primary)", boxShadow: "var(--shadow-glow)" }}>
