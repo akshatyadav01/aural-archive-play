@@ -6,6 +6,13 @@ import {
   Repeat, Repeat1, Lock, LogOut, Menu,
 } from "lucide-react";
 import { api, fileUrl, type Playlist, type Song } from "@/lib/music-api";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -88,6 +95,8 @@ function MusicApp({ onLock }: { onLock: () => void }) {
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
   const [navOpen, setNavOpen] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+
 
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [activePlaylist, setActivePlaylist] = useState<Playlist | null>(null);
@@ -132,8 +141,13 @@ function MusicApp({ onLock }: { onLock: () => void }) {
     const [next, ...rest] = queue;
     setQueue(rest); playSong(next);
   }
-  function addToQueue(s: Song) { setQueue((q) => [...q, s]); }
+  function addToQueue(s: Song) {
+    setQueue((q) => [...q, s]);
+    setToast(`Added "${s.title}" to queue`);
+    window.setTimeout(() => setToast(null), 2200);
+  }
   function selectTab(t: Tab) { setTab(t); setNavOpen(false); }
+
 
   async function handleUpload(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -209,7 +223,7 @@ function MusicApp({ onLock }: { onLock: () => void }) {
         </button>
       </div>
 
-      {/* Mobile nav drawer */}
+      {/* Mobile nav drawer (from hamburger) */}
       {navOpen && (
         <div className="md:hidden fixed inset-0 z-40 bg-background/80 backdrop-blur-xl" onClick={() => setNavOpen(false)}>
           <div className="p-4 space-y-1" onClick={(e) => e.stopPropagation()}>
@@ -218,9 +232,18 @@ function MusicApp({ onLock }: { onLock: () => void }) {
         </div>
       )}
 
+      {/* Toast */}
+      {toast && (
+        <div className="fixed z-50 left-1/2 -translate-x-1/2 top-16 md:top-6 px-4 py-2.5 rounded-full bg-primary text-primary-foreground text-sm font-medium shadow-lg animate-in fade-in slide-in-from-top-2"
+          style={{ boxShadow: "var(--shadow-glow)" }}>
+          {toast}
+        </div>
+      )}
+
       {/* Sidebar (desktop) */}
       <nav className="hidden md:flex w-20 lg:w-64 shrink-0 border-r border-border bg-sidebar/60 backdrop-blur-xl flex-col sticky top-0 h-screen">
         <div className="p-5 flex items-center gap-3">
+
           <div className="w-10 h-10 rounded-xl grid place-items-center shrink-0"
             style={{ background: "var(--gradient-primary)", boxShadow: "var(--shadow-glow)" }}>
             <Disc3 className="w-5 h-5 text-primary-foreground" />
@@ -243,7 +266,7 @@ function MusicApp({ onLock }: { onLock: () => void }) {
       </nav>
 
       {/* Content */}
-      <main className="flex-1 min-w-0 overflow-y-auto pb-40 md:pb-32">
+      <main className="flex-1 min-w-0 overflow-y-auto pb-56 md:pb-32">
         <header className="hidden md:block sticky top-0 z-10 backdrop-blur-xl bg-background/70 border-b border-border/60 px-6 lg:px-10 py-5">
           <h1 className="text-2xl lg:text-3xl font-bold tracking-tight">{tabMeta[tab].title}</h1>
           <p className="text-sm text-muted-foreground mt-0.5">{tabMeta[tab].subtitle}</p>
@@ -360,29 +383,45 @@ function MusicApp({ onLock }: { onLock: () => void }) {
                   {playlists.length === 0 ? (
                     <EmptyState icon={<Library className="w-8 h-8" />} title="No playlists yet" hint="Create one above to start organizing your music." />
                   ) : (
-                    <ul className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
-                      {playlists.map((p, i) => (
-                        <li key={p.id} className="group relative">
-                          <button onClick={() => setActivePlaylist(p)} className="w-full text-left">
-                            <div className="aspect-square rounded-2xl grid place-items-center mb-3 transition-transform group-hover:scale-[1.02]"
-                              style={{
-                                background: i % 2 === 0 ? "var(--gradient-primary)" : "var(--gradient-accent)",
-                                boxShadow: "var(--shadow-card)",
-                              }}>
-                              <Library className="w-10 h-10 text-primary-foreground/90" />
-                            </div>
-                            <div className="font-semibold truncate text-sm sm:text-base">{p.name}</div>
-                            <div className="text-xs text-muted-foreground">Playlist</div>
-                          </button>
-                          <button
-                            onClick={async () => { await api.deletePlaylist(p.id); setPlaylists((ps) => ps.filter((x) => x.id !== p.id)); }}
-                            className="absolute top-2 right-2 p-2 rounded-full bg-background/70 backdrop-blur opacity-100 md:opacity-0 group-hover:opacity-100 hover:bg-destructive hover:text-destructive-foreground transition-all">
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </li>
-                      ))}
+                    <ul className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+                      {playlists.map((p, i) => {
+                        const gradients = [
+                          "linear-gradient(135deg, oklch(0.72 0.21 150), oklch(0.55 0.22 200))",
+                          "linear-gradient(135deg, oklch(0.65 0.22 305), oklch(0.5 0.24 260))",
+                          "linear-gradient(135deg, oklch(0.75 0.2 70), oklch(0.6 0.24 22))",
+                          "linear-gradient(135deg, oklch(0.7 0.2 220), oklch(0.55 0.22 305))",
+                          "linear-gradient(135deg, oklch(0.68 0.22 340), oklch(0.55 0.2 30))",
+                          "linear-gradient(135deg, oklch(0.7 0.18 170), oklch(0.5 0.2 250))",
+                        ];
+                        const bg = gradients[i % gradients.length];
+                        return (
+                          <li key={p.id} className="group relative">
+                            <button onClick={() => setActivePlaylist(p)}
+                              className="w-full text-left rounded-2xl p-3 sm:p-4 bg-card/60 border border-border hover:bg-card transition-all hover:-translate-y-0.5"
+                              style={{ boxShadow: "var(--shadow-card)" }}>
+                              <div className="aspect-square rounded-xl grid place-items-center mb-3 relative overflow-hidden"
+                                style={{ background: bg }}>
+                                <Library className="w-10 h-10 sm:w-12 sm:h-12 text-primary-foreground/90 drop-shadow-lg" />
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
+                                <div className="absolute bottom-1.5 right-1.5 w-8 h-8 rounded-full grid place-items-center bg-primary text-primary-foreground opacity-0 group-hover:opacity-100 transition-opacity translate-y-1 group-hover:translate-y-0"
+                                  style={{ boxShadow: "var(--shadow-glow)" }}>
+                                  <Play className="w-3.5 h-3.5 fill-current ml-0.5" />
+                                </div>
+                              </div>
+                              <div className="font-semibold truncate text-sm sm:text-base">{p.name}</div>
+                              <div className="text-[11px] text-muted-foreground uppercase tracking-wider mt-0.5">Playlist</div>
+                            </button>
+                            <button
+                              onClick={async () => { if (confirm(`Delete playlist "${p.name}"?`)) { await api.deletePlaylist(p.id); setPlaylists((ps) => ps.filter((x) => x.id !== p.id)); } }}
+                              className="absolute top-3 right-3 p-1.5 rounded-full bg-background/80 backdrop-blur text-muted-foreground opacity-100 md:opacity-0 group-hover:opacity-100 hover:bg-destructive hover:text-destructive-foreground transition-all">
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </li>
+                        );
+                      })}
                     </ul>
                   )}
+
                 </>
               ) : (
                 <div>
@@ -409,10 +448,35 @@ function MusicApp({ onLock }: { onLock: () => void }) {
         </div>
       </main>
 
+      {/* Mobile bottom tab bar (always visible) */}
+      <nav className="md:hidden fixed left-0 right-0 bottom-0 z-30 bg-sidebar/95 backdrop-blur-xl border-t border-border grid grid-cols-4 h-16">
+        {[
+          { t: "search" as Tab, icon: <Search className="w-5 h-5" />, label: "Search" },
+          { t: "upload" as Tab, icon: <Upload className="w-5 h-5" />, label: "Upload" },
+          { t: "queue" as Tab, icon: <ListMusic className="w-5 h-5" />, label: "Queue", badge: queue.length },
+          { t: "playlists" as Tab, icon: <Library className="w-5 h-5" />, label: "Playlists" },
+        ].map((it) => {
+          const active = tab === it.t;
+          return (
+            <button key={it.t} onClick={() => { selectTab(it.t); if (it.t === "playlists") setActivePlaylist(null); }}
+              className={`relative flex flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors ${
+                active ? "text-primary" : "text-muted-foreground"
+              }`}>
+              {it.icon}
+              <span>{it.label}</span>
+              {it.badge ? (
+                <span className="absolute top-1.5 right-1/2 translate-x-4 text-[9px] font-bold bg-primary text-primary-foreground rounded-full min-w-4 h-4 px-1 grid place-items-center">{it.badge}</span>
+              ) : null}
+            </button>
+          );
+        })}
+      </nav>
+
       {/* Player bar */}
       {current && (
-        <div className="fixed bottom-0 left-0 right-0 z-20 border-t border-border bg-card/90 backdrop-blur-2xl px-3 sm:px-4 py-3"
+        <div className="fixed bottom-16 md:bottom-0 left-0 right-0 z-20 border-t border-border bg-card/90 backdrop-blur-2xl px-3 sm:px-4 py-3"
           style={{ boxShadow: "0 -8px 32px -8px rgba(0,0,0,0.4)" }}>
+
           <div className="flex items-center gap-3 sm:gap-4">
             <div className="flex items-center gap-3 flex-1 sm:flex-initial sm:w-56 lg:w-72 min-w-0">
               <Cover song={current} size={44} />
@@ -555,7 +619,7 @@ function SongList({
         const isCurrent = current?.id === s.id;
         return (
           <li key={s.id}
-            className={`group flex items-center gap-2 sm:gap-4 px-2 sm:px-3 py-2.5 rounded-xl transition-colors ${
+            className={`group flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-2 sm:py-2.5 rounded-xl transition-colors ${
               isCurrent ? "bg-primary/10" : "hover:bg-card/60"
             }`}>
             <button onClick={() => onPlay(s)} className="w-6 grid place-items-center text-foreground shrink-0" title="Play">
@@ -567,26 +631,43 @@ function SongList({
               <div className={`font-medium truncate text-sm ${isCurrent ? "text-primary" : ""}`}>{s.title}</div>
               <div className="text-xs text-muted-foreground truncate">{s.artist || "Unknown artist"}</div>
             </div>
-            <button onClick={() => onQueue(s)} title="Add to queue"
-              className="p-2 rounded-full hover:bg-secondary text-muted-foreground hover:text-foreground transition-all shrink-0">
-              <Plus className="w-4 h-4" />
-            </button>
-            {onAddToPlaylist && playlists.length > 0 && !onRemove && (
-              <select defaultValue=""
-                onChange={(e) => { const id = Number(e.target.value); if (id) onAddToPlaylist(id, s); e.target.value = ""; }}
-                className="hidden sm:block text-xs bg-secondary text-secondary-foreground rounded-md px-2 py-1.5 border-0 cursor-pointer shrink-0">
-                <option value="">＋ Playlist</option>
-                {playlists.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
-            )}
-            {onRemove && (
-              <button onClick={() => onRemove(s)} className="text-xs text-muted-foreground hover:text-destructive p-1.5 shrink-0">
-                <X className="w-4 h-4" />
+
+            <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+              <button onClick={() => onQueue(s)} title="Add to queue"
+                className="w-8 h-8 sm:w-9 sm:h-9 rounded-full grid place-items-center bg-secondary/60 hover:bg-secondary text-muted-foreground hover:text-foreground transition-all shrink-0">
+                <Plus className="w-4 h-4" />
               </button>
-            )}
+
+              {onAddToPlaylist && playlists.length > 0 && !onRemove && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button title="Add to playlist"
+                      className="w-8 h-8 sm:w-9 sm:h-9 rounded-full grid place-items-center bg-secondary/60 hover:bg-secondary text-muted-foreground hover:text-foreground transition-all shrink-0">
+                      <FolderPlus className="w-4 h-4" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-52">
+                    <div className="px-2 py-1 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Add to playlist</div>
+                    {playlists.map((p) => (
+                      <DropdownMenuItem key={p.id} onClick={() => onAddToPlaylist(p.id, s)} className="cursor-pointer">
+                        <ListMusic className="w-4 h-4 text-muted-foreground" />
+                        <span className="truncate">{p.name}</span>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+
+              {onRemove && (
+                <button onClick={() => onRemove(s)} className="w-8 h-8 sm:w-9 sm:h-9 rounded-full grid place-items-center bg-secondary/60 hover:bg-destructive text-muted-foreground hover:text-destructive-foreground transition-all shrink-0">
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
           </li>
         );
       })}
     </ul>
   );
 }
+
