@@ -143,6 +143,19 @@ function MusicApp({ onLock }: { onLock: () => void }) {
     const [next, ...rest] = queue;
     setQueue(rest); playSong(next);
   }
+  function playPrevious() {
+    const a = audioRef.current;
+    if (a && progress > 3) {
+      a.currentTime = 0;
+      a.play().catch(() => {});
+      return;
+    }
+    if (history.length === 0) return;
+    const prev = history[history.length - 1];
+    setHistory((h) => h.slice(0, -1));
+    setCurrent(prev);
+    setTimeout(() => audioRef.current?.play().catch(() => {}), 50);
+  }
   function addToQueue(s: Song) {
     setQueue((q) => [...q, s]);
     setToast(`Added "${s.title}" to queue`);
