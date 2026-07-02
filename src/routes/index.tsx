@@ -6,6 +6,13 @@ import {
   Repeat, Repeat1, Lock, LogOut, Menu,
 } from "lucide-react";
 import { api, fileUrl, type Playlist, type Song } from "@/lib/music-api";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
 
 export const Route = createFileRoute("/")({
   head: () => ({
