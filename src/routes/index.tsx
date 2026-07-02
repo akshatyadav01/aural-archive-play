@@ -126,6 +126,7 @@ function MusicApp({ onLock }: { onLock: () => void }) {
   }, [activePlaylist]);
 
   function playSong(s: Song) {
+    setHistory((h) => (current && current.id !== s.id ? [...h, current] : h));
     setCurrent(s);
     setTimeout(() => audioRef.current?.play().catch(() => {}), 50);
   }
