@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import {
   Search, Upload, ListMusic, Library, Music2, Play, Pause,
-  Plus, X, SkipForward, Trash2, ChevronLeft, Disc3, FolderPlus,
+  Plus, X, SkipBack, SkipForward, Trash2, ChevronLeft, Disc3, FolderPlus,
   Repeat, Repeat1, Lock, LogOut, Menu,
 } from "lucide-react";
 import { api, fileUrl, type Playlist, type Song } from "@/lib/music-api";
@@ -89,6 +89,7 @@ function MusicApp({ onLock }: { onLock: () => void }) {
   const [songs, setSongs] = useState<Song[]>([]);
   const [query, setQuery] = useState("");
   const [queue, setQueue] = useState<Song[]>([]);
+  const [history, setHistory] = useState<Song[]>([]);
   const [current, setCurrent] = useState<Song | null>(null);
   const [playing, setPlaying] = useState(false);
   const [loop, setLoop] = useState(false);
@@ -125,6 +126,7 @@ function MusicApp({ onLock }: { onLock: () => void }) {
   }, [activePlaylist]);
 
   function playSong(s: Song) {
+    setHistory((h) => (current && current.id !== s.id ? [...h, current] : h));
     setCurrent(s);
     setTimeout(() => audioRef.current?.play().catch(() => {}), 50);
   }
@@ -140,6 +142,19 @@ function MusicApp({ onLock }: { onLock: () => void }) {
     if (queue.length === 0) { setCurrent(null); return; }
     const [next, ...rest] = queue;
     setQueue(rest); playSong(next);
+  }
+  function playPrevious() {
+    const a = audioRef.current;
+    if (a && progress > 3) {
+      a.currentTime = 0;
+      a.play().catch(() => {});
+      return;
+    }
+    if (history.length === 0) return;
+    const prev = history[history.length - 1];
+    setHistory((h) => h.slice(0, -1));
+    setCurrent(prev);
+    setTimeout(() => audioRef.current?.play().catch(() => {}), 50);
   }
   function addToQueue(s: Song) {
     setQueue((q) => [...q, s]);
@@ -492,6 +507,10 @@ function MusicApp({ onLock }: { onLock: () => void }) {
                   loop ? "bg-primary/20 text-primary" : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
                 }`}>
                 {loop ? <Repeat1 className="w-4 h-4" /> : <Repeat className="w-4 h-4" />}
+              </button>
+              <button onClick={playPrevious} title="Previous" disabled={history.length === 0 && progress <= 3}
+                className="w-9 h-9 sm:w-10 sm:h-10 rounded-full grid place-items-center bg-secondary text-secondary-foreground hover:bg-secondary/80 disabled:opacity-40 disabled:hover:bg-secondary">
+                <SkipBack className="w-4 h-4" />
               </button>
               <button onClick={togglePlay}
                 className="w-11 h-11 sm:w-12 sm:h-12 rounded-full grid place-items-center text-primary-foreground transition-transform hover:scale-105"
