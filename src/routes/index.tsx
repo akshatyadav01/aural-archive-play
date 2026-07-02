@@ -89,6 +89,7 @@ function MusicApp({ onLock }: { onLock: () => void }) {
   const [songs, setSongs] = useState<Song[]>([]);
   const [query, setQuery] = useState("");
   const [queue, setQueue] = useState<Song[]>([]);
+  const [history, setHistory] = useState<Song[]>([]);
   const [current, setCurrent] = useState<Song | null>(null);
   const [playing, setPlaying] = useState(false);
   const [loop, setLoop] = useState(false);
