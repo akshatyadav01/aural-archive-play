@@ -107,6 +107,15 @@ function MusicApp({ onLock }: { onLock: () => void }) {
   const [error, setError] = useState<string | null>(null);
   const [uploadMsg, setUploadMsg] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [uploadForm, setUploadForm] = useState<{
+    title: string;
+    artist: string;
+    duration: number | null;
+    audioFile: File | null;
+    posterFile: File | null;
+    embeddedCover: { blob: Blob; url: string } | null;
+    parsing: boolean;
+  }>({ title: "", artist: "", duration: null, audioFile: null, posterFile: null, embeddedCover: null, parsing: false });
   const audioRef = useRef<HTMLAudioElement>(null);
 
   useEffect(() => {
