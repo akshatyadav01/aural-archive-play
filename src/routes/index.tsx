@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   Search, Upload, ListMusic, Library, Music2, Play, Pause,
   Plus, X, SkipBack, SkipForward, Trash2, ChevronLeft, Disc3, FolderPlus,
-  Repeat, Repeat1, Lock, LogOut, Menu,
+  Repeat, Repeat1, Lock, LogOut, Menu, ImageIcon, Sparkles,
 } from "lucide-react";
 import { api, fileUrl, type Playlist, type Song } from "@/lib/music-api";
 import {
