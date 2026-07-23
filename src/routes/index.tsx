@@ -2,8 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import {
   Search, Upload, ListMusic, Library, Music2, Play, Pause,
-  Plus, X, SkipForward, Trash2, ChevronLeft, Disc3, FolderPlus,
-  Repeat, Repeat1, Lock, LogOut, Menu,
+  Plus, X, SkipBack, SkipForward, Trash2, ChevronLeft, Disc3, FolderPlus,
+  Repeat, Repeat1, Lock, LogOut, Menu, ImageIcon, Sparkles,
 } from "lucide-react";
 import { api, fileUrl, type Playlist, type Song } from "@/lib/music-api";
 import {
@@ -89,6 +89,7 @@ function MusicApp({ onLock }: { onLock: () => void }) {
   const [songs, setSongs] = useState<Song[]>([]);
   const [query, setQuery] = useState("");
   const [queue, setQueue] = useState<Song[]>([]);
+  const [history, setHistory] = useState<Song[]>([]);
   const [current, setCurrent] = useState<Song | null>(null);
   const [playing, setPlaying] = useState(false);
   const [loop, setLoop] = useState(false);
@@ -106,6 +107,15 @@ function MusicApp({ onLock }: { onLock: () => void }) {
   const [error, setError] = useState<string | null>(null);
   const [uploadMsg, setUploadMsg] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [uploadForm, setUploadForm] = useState<{
+    title: string;
+    artist: string;
+    duration: number | null;
+    audioFile: File | null;
+    posterFile: File | null;
+    embeddedCover: { blob: Blob; url: string } | null;
+    parsing: boolean;
+  }>({ title: "", artist: "", duration: null, audioFile: null, posterFile: null, embeddedCover: null, parsing: false });
   const audioRef = useRef<HTMLAudioElement>(null);
 
   useEffect(() => {
@@ -125,6 +135,7 @@ function MusicApp({ onLock }: { onLock: () => void }) {
   }, [activePlaylist]);
 
   function playSong(s: Song) {
+    setHistory((h) => (current && current.id !== s.id ? [...h, current] : h));
     setCurrent(s);
     setTimeout(() => audioRef.current?.play().catch(() => {}), 50);
   }
@@ -141,6 +152,19 @@ function MusicApp({ onLock }: { onLock: () => void }) {
     const [next, ...rest] = queue;
     setQueue(rest); playSong(next);
   }
+  function playPrevious() {
+    const a = audioRef.current;
+    if (a && progress > 3) {
+      a.currentTime = 0;
+      a.play().catch(() => {});
+      return;
+    }
+    if (history.length === 0) return;
+    const prev = history[history.length - 1];
+    setHistory((h) => h.slice(0, -1));
+    setCurrent(prev);
+    setTimeout(() => audioRef.current?.play().catch(() => {}), 50);
+  }
   function addToQueue(s: Song) {
     setQueue((q) => [...q, s]);
     setToast(`Added "${s.title}" to queue`);
@@ -149,14 +173,67 @@ function MusicApp({ onLock }: { onLock: () => void }) {
   function selectTab(t: Tab) { setTab(t); setNavOpen(false); }
 
 
+  async function handleAudioSelected(file: File | null) {
+    // Revoke previous cover URL if any
+    setUploadForm((f) => {
+      if (f.embeddedCover) URL.revokeObjectURL(f.embeddedCover.url);
+      return { ...f, audioFile: file, embeddedCover: null, parsing: !!file };
+    });
+    if (!file) return;
+    // Default title from filename (strip extension)
+    const fallbackTitle = file.name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").trim();
+    try {
+      const mm = await import("music-metadata");
+      const meta = await mm.parseBlob(file);
+      const title = meta.common.title?.trim() || fallbackTitle;
+      const artist = (meta.common.artist || meta.common.artists?.[0] || "").trim();
+      const duration = meta.format.duration ?? null;
+      let cover: { blob: Blob; url: string } | null = null;
+      const pic = meta.common.picture?.[0];
+      if (pic && pic.data) {
+        const src = pic.data as Uint8Array;
+        const copy = new Uint8Array(src.byteLength);
+        copy.set(src);
+        const blob = new Blob([copy.buffer], { type: pic.format || "image/jpeg" });
+        cover = { blob, url: URL.createObjectURL(blob) };
+      }
+      setUploadForm((f) => ({
+        ...f,
+        title: f.title || title,
+        artist: f.artist || artist,
+        duration,
+        embeddedCover: cover,
+        parsing: false,
+      }));
+    } catch {
+      setUploadForm((f) => ({ ...f, title: f.title || fallbackTitle, parsing: false }));
+    }
+  }
+
   async function handleUpload(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setError(null); setUploadMsg(null); setUploading(true);
-    const formEl = e.currentTarget;
-    const form = new FormData(formEl);
+    setError(null); setUploadMsg(null);
+    const { title, artist, audioFile, posterFile, embeddedCover, duration } = uploadForm;
+    if (!audioFile || !title.trim()) {
+      setError("Please choose an audio file and enter a title.");
+      return;
+    }
+    setUploading(true);
     try {
+      const form = new FormData();
+      form.set("title", title.trim());
+      form.set("artist", artist.trim());
+      if (duration != null) form.set("duration", String(duration));
+      form.set("audio", audioFile);
+      if (posterFile) {
+        form.set("poster", posterFile);
+      } else if (embeddedCover) {
+        const ext = embeddedCover.blob.type.includes("png") ? "png" : "jpg";
+        form.set("poster", new File([embeddedCover.blob], `cover.${ext}`, { type: embeddedCover.blob.type }));
+      }
       const s = await api.uploadSong(form);
-      formEl.reset();
+      if (embeddedCover) URL.revokeObjectURL(embeddedCover.url);
+      setUploadForm({ title: "", artist: "", duration: null, audioFile: null, posterFile: null, embeddedCover: null, parsing: false });
       setUploadMsg(`"${s.title}" added to your library`);
       const list = await api.listSongs(query); setSongs(list);
     } catch (err: any) { setError(`Upload failed: ${err.message}`); }
@@ -315,16 +392,98 @@ function MusicApp({ onLock }: { onLock: () => void }) {
                   </div>
                   <div className="min-w-0">
                     <div className="font-semibold">New track</div>
-                    <div className="text-xs text-muted-foreground">Audio is stored securely in your library</div>
+                    <div className="text-xs text-muted-foreground">We'll auto-detect title, artist and cover art</div>
                   </div>
                 </div>
+
+                <Field label="Audio file">
+                  <input
+                    type="file"
+                    accept="audio/*"
+                    required
+                    onChange={(e) => handleAudioSelected(e.target.files?.[0] ?? null)}
+                    className="block w-full text-sm text-muted-foreground file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-secondary file:text-secondary-foreground hover:file:bg-secondary/80"
+                  />
+                  {uploadForm.parsing && (
+                    <div className="mt-2 text-xs text-muted-foreground inline-flex items-center gap-1.5">
+                      <Sparkles className="w-3 h-3 animate-pulse" /> Reading metadata…
+                    </div>
+                  )}
+                </Field>
+
+                {uploadForm.audioFile && !uploadForm.parsing && (
+                  <div className="rounded-xl border border-border bg-background/40 p-4 flex gap-4 items-start">
+                    <div className="w-20 h-20 rounded-lg overflow-hidden shrink-0 grid place-items-center bg-secondary/60 border border-border">
+                      {uploadForm.posterFile ? (
+                        <img src={URL.createObjectURL(uploadForm.posterFile)} alt="" className="w-full h-full object-cover" />
+                      ) : uploadForm.embeddedCover ? (
+                        <img src={uploadForm.embeddedCover.url} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <ImageIcon className="w-6 h-6 text-muted-foreground" />
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1 text-xs space-y-1">
+                      <div className="inline-flex items-center gap-1 text-primary">
+                        <Sparkles className="w-3 h-3" />
+                        <span className="font-medium">
+                          {uploadForm.embeddedCover || uploadForm.title || uploadForm.artist
+                            ? "Detected from file"
+                            : "No metadata found — fill in below"}
+                        </span>
+                      </div>
+                      {uploadForm.duration != null && (
+                        <div className="text-muted-foreground">Duration: {fmt(uploadForm.duration)}</div>
+                      )}
+                      {(uploadForm.embeddedCover || uploadForm.posterFile) && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (uploadForm.embeddedCover) URL.revokeObjectURL(uploadForm.embeddedCover.url);
+                            setUploadForm((f) => ({ ...f, embeddedCover: null, posterFile: null }));
+                          }}
+                          className="text-muted-foreground hover:text-destructive underline underline-offset-2"
+                        >
+                          Remove cover
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 <div className="grid sm:grid-cols-2 gap-4">
-                  <Field label="Title"><TextInput name="title" required placeholder="Midnight Drive" /></Field>
-                  <Field label="Artist"><TextInput name="artist" placeholder="Unknown" /></Field>
+                  <Field label="Title">
+                    <input
+                      type="text"
+                      required
+                      placeholder="Midnight Drive"
+                      value={uploadForm.title}
+                      onChange={(e) => setUploadForm((f) => ({ ...f, title: e.target.value }))}
+                      className="w-full px-4 py-2.5 rounded-xl bg-background/60 border border-border focus:outline-none focus:ring-2 focus:ring-primary/60 text-sm"
+                    />
+                  </Field>
+                  <Field label="Artist">
+                    <input
+                      type="text"
+                      placeholder="Unknown"
+                      value={uploadForm.artist}
+                      onChange={(e) => setUploadForm((f) => ({ ...f, artist: e.target.value }))}
+                      className="w-full px-4 py-2.5 rounded-xl bg-background/60 border border-border focus:outline-none focus:ring-2 focus:ring-primary/60 text-sm"
+                    />
+                  </Field>
                 </div>
-                <Field label="Audio file"><FileInput name="audio" accept="audio/*" required /></Field>
-                <Field label="Cover image (optional)"><FileInput name="poster" accept="image/*" /></Field>
-                <button type="submit" disabled={uploading}
+
+                {uploadForm.audioFile && !uploadForm.embeddedCover && !uploadForm.posterFile && !uploadForm.parsing && (
+                  <Field label="Cover image (no artwork found in file)">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => setUploadForm((f) => ({ ...f, posterFile: e.target.files?.[0] ?? null }))}
+                      className="block w-full text-sm text-muted-foreground file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-secondary file:text-secondary-foreground hover:file:bg-secondary/80"
+                    />
+                  </Field>
+                )}
+
+                <button type="submit" disabled={uploading || uploadForm.parsing || !uploadForm.audioFile}
                   className="w-full px-4 py-3 rounded-xl text-primary-foreground font-semibold disabled:opacity-60 transition-transform hover:scale-[1.01] active:scale-[0.99]"
                   style={{ background: "var(--gradient-primary)", boxShadow: "var(--shadow-glow)" }}>
                   {uploading ? "Uploading…" : "Add to library"}
@@ -492,6 +651,10 @@ function MusicApp({ onLock }: { onLock: () => void }) {
                   loop ? "bg-primary/20 text-primary" : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
                 }`}>
                 {loop ? <Repeat1 className="w-4 h-4" /> : <Repeat className="w-4 h-4" />}
+              </button>
+              <button onClick={playPrevious} title="Previous" disabled={history.length === 0 && progress <= 3}
+                className="w-9 h-9 sm:w-10 sm:h-10 rounded-full grid place-items-center bg-secondary text-secondary-foreground hover:bg-secondary/80 disabled:opacity-40 disabled:hover:bg-secondary">
+                <SkipBack className="w-4 h-4" />
               </button>
               <button onClick={togglePlay}
                 className="w-11 h-11 sm:w-12 sm:h-12 rounded-full grid place-items-center text-primary-foreground transition-transform hover:scale-105"
