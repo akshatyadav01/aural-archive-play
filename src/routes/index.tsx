@@ -173,14 +173,65 @@ function MusicApp({ onLock }: { onLock: () => void }) {
   function selectTab(t: Tab) { setTab(t); setNavOpen(false); }
 
 
+  async function handleAudioSelected(file: File | null) {
+    // Revoke previous cover URL if any
+    setUploadForm((f) => {
+      if (f.embeddedCover) URL.revokeObjectURL(f.embeddedCover.url);
+      return { ...f, audioFile: file, embeddedCover: null, parsing: !!file };
+    });
+    if (!file) return;
+    // Default title from filename (strip extension)
+    const fallbackTitle = file.name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").trim();
+    try {
+      const mm = await import("music-metadata");
+      const meta = await mm.parseBlob(file);
+      const title = meta.common.title?.trim() || fallbackTitle;
+      const artist = (meta.common.artist || meta.common.artists?.[0] || "").trim();
+      const duration = meta.format.duration ?? null;
+      let cover: { blob: Blob; url: string } | null = null;
+      const pic = meta.common.picture?.[0];
+      if (pic && pic.data) {
+        const bytes = pic.data instanceof Uint8Array ? pic.data : new Uint8Array(pic.data as ArrayBuffer);
+        const blob = new Blob([bytes], { type: pic.format || "image/jpeg" });
+        cover = { blob, url: URL.createObjectURL(blob) };
+      }
+      setUploadForm((f) => ({
+        ...f,
+        title: f.title || title,
+        artist: f.artist || artist,
+        duration,
+        embeddedCover: cover,
+        parsing: false,
+      }));
+    } catch {
+      setUploadForm((f) => ({ ...f, title: f.title || fallbackTitle, parsing: false }));
+    }
+  }
+
   async function handleUpload(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setError(null); setUploadMsg(null); setUploading(true);
-    const formEl = e.currentTarget;
-    const form = new FormData(formEl);
+    setError(null); setUploadMsg(null);
+    const { title, artist, audioFile, posterFile, embeddedCover, duration } = uploadForm;
+    if (!audioFile || !title.trim()) {
+      setError("Please choose an audio file and enter a title.");
+      return;
+    }
+    setUploading(true);
     try {
+      const form = new FormData();
+      form.set("title", title.trim());
+      form.set("artist", artist.trim());
+      if (duration != null) form.set("duration", String(duration));
+      form.set("audio", audioFile);
+      if (posterFile) {
+        form.set("poster", posterFile);
+      } else if (embeddedCover) {
+        const ext = embeddedCover.blob.type.includes("png") ? "png" : "jpg";
+        form.set("poster", new File([embeddedCover.blob], `cover.${ext}`, { type: embeddedCover.blob.type }));
+      }
       const s = await api.uploadSong(form);
-      formEl.reset();
+      if (embeddedCover) URL.revokeObjectURL(embeddedCover.url);
+      setUploadForm({ title: "", artist: "", duration: null, audioFile: null, posterFile: null, embeddedCover: null, parsing: false });
       setUploadMsg(`"${s.title}" added to your library`);
       const list = await api.listSongs(query); setSongs(list);
     } catch (err: any) { setError(`Upload failed: ${err.message}`); }
