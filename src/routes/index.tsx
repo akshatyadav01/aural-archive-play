@@ -432,7 +432,7 @@ function MusicApp({ onLock }: { onLock: () => void }) {
                         </span>
                       </div>
                       {uploadForm.duration != null && (
-                        <div className="text-muted-foreground">Duration: {fmtTime(uploadForm.duration)}</div>
+                        <div className="text-muted-foreground">Duration: {fmt(uploadForm.duration)}</div>
                       )}
                       {(uploadForm.embeddedCover || uploadForm.posterFile) && (
                         <button
