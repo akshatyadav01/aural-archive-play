@@ -392,16 +392,98 @@ function MusicApp({ onLock }: { onLock: () => void }) {
                   </div>
                   <div className="min-w-0">
                     <div className="font-semibold">New track</div>
-                    <div className="text-xs text-muted-foreground">Audio is stored securely in your library</div>
+                    <div className="text-xs text-muted-foreground">We'll auto-detect title, artist and cover art</div>
                   </div>
                 </div>
+
+                <Field label="Audio file">
+                  <input
+                    type="file"
+                    accept="audio/*"
+                    required
+                    onChange={(e) => handleAudioSelected(e.target.files?.[0] ?? null)}
+                    className="block w-full text-sm text-muted-foreground file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-secondary file:text-secondary-foreground hover:file:bg-secondary/80"
+                  />
+                  {uploadForm.parsing && (
+                    <div className="mt-2 text-xs text-muted-foreground inline-flex items-center gap-1.5">
+                      <Sparkles className="w-3 h-3 animate-pulse" /> Reading metadata…
+                    </div>
+                  )}
+                </Field>
+
+                {uploadForm.audioFile && !uploadForm.parsing && (
+                  <div className="rounded-xl border border-border bg-background/40 p-4 flex gap-4 items-start">
+                    <div className="w-20 h-20 rounded-lg overflow-hidden shrink-0 grid place-items-center bg-secondary/60 border border-border">
+                      {uploadForm.posterFile ? (
+                        <img src={URL.createObjectURL(uploadForm.posterFile)} alt="" className="w-full h-full object-cover" />
+                      ) : uploadForm.embeddedCover ? (
+                        <img src={uploadForm.embeddedCover.url} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <ImageIcon className="w-6 h-6 text-muted-foreground" />
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1 text-xs space-y-1">
+                      <div className="inline-flex items-center gap-1 text-primary">
+                        <Sparkles className="w-3 h-3" />
+                        <span className="font-medium">
+                          {uploadForm.embeddedCover || uploadForm.title || uploadForm.artist
+                            ? "Detected from file"
+                            : "No metadata found — fill in below"}
+                        </span>
+                      </div>
+                      {uploadForm.duration != null && (
+                        <div className="text-muted-foreground">Duration: {fmtTime(uploadForm.duration)}</div>
+                      )}
+                      {(uploadForm.embeddedCover || uploadForm.posterFile) && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (uploadForm.embeddedCover) URL.revokeObjectURL(uploadForm.embeddedCover.url);
+                            setUploadForm((f) => ({ ...f, embeddedCover: null, posterFile: null }));
+                          }}
+                          className="text-muted-foreground hover:text-destructive underline underline-offset-2"
+                        >
+                          Remove cover
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 <div className="grid sm:grid-cols-2 gap-4">
-                  <Field label="Title"><TextInput name="title" required placeholder="Midnight Drive" /></Field>
-                  <Field label="Artist"><TextInput name="artist" placeholder="Unknown" /></Field>
+                  <Field label="Title">
+                    <input
+                      type="text"
+                      required
+                      placeholder="Midnight Drive"
+                      value={uploadForm.title}
+                      onChange={(e) => setUploadForm((f) => ({ ...f, title: e.target.value }))}
+                      className="w-full px-4 py-2.5 rounded-xl bg-background/60 border border-border focus:outline-none focus:ring-2 focus:ring-primary/60 text-sm"
+                    />
+                  </Field>
+                  <Field label="Artist">
+                    <input
+                      type="text"
+                      placeholder="Unknown"
+                      value={uploadForm.artist}
+                      onChange={(e) => setUploadForm((f) => ({ ...f, artist: e.target.value }))}
+                      className="w-full px-4 py-2.5 rounded-xl bg-background/60 border border-border focus:outline-none focus:ring-2 focus:ring-primary/60 text-sm"
+                    />
+                  </Field>
                 </div>
-                <Field label="Audio file"><FileInput name="audio" accept="audio/*" required /></Field>
-                <Field label="Cover image (optional)"><FileInput name="poster" accept="image/*" /></Field>
-                <button type="submit" disabled={uploading}
+
+                {uploadForm.audioFile && !uploadForm.embeddedCover && !uploadForm.posterFile && !uploadForm.parsing && (
+                  <Field label="Cover image (no artwork found in file)">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => setUploadForm((f) => ({ ...f, posterFile: e.target.files?.[0] ?? null }))}
+                      className="block w-full text-sm text-muted-foreground file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-secondary file:text-secondary-foreground hover:file:bg-secondary/80"
+                    />
+                  </Field>
+                )}
+
+                <button type="submit" disabled={uploading || uploadForm.parsing || !uploadForm.audioFile}
                   className="w-full px-4 py-3 rounded-xl text-primary-foreground font-semibold disabled:opacity-60 transition-transform hover:scale-[1.01] active:scale-[0.99]"
                   style={{ background: "var(--gradient-primary)", boxShadow: "var(--shadow-glow)" }}>
                   {uploading ? "Uploading…" : "Add to library"}
