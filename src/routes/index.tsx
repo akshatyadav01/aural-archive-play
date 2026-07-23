@@ -191,8 +191,10 @@ function MusicApp({ onLock }: { onLock: () => void }) {
       let cover: { blob: Blob; url: string } | null = null;
       const pic = meta.common.picture?.[0];
       if (pic && pic.data) {
-        const bytes = pic.data instanceof Uint8Array ? pic.data : new Uint8Array(pic.data as ArrayBuffer);
-        const blob = new Blob([bytes], { type: pic.format || "image/jpeg" });
+        const src = pic.data as Uint8Array;
+        const copy = new Uint8Array(src.byteLength);
+        copy.set(src);
+        const blob = new Blob([copy.buffer], { type: pic.format || "image/jpeg" });
         cover = { blob, url: URL.createObjectURL(blob) };
       }
       setUploadForm((f) => ({
